@@ -18,7 +18,7 @@ const Stats = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const response = await request.get(`${process.env.REACT_APP_API_URL}/logs/stats/`);
+                const response = await request.get(`${import.meta.env.VITE_API_URL}/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
                 if (error.response.status === 401) {

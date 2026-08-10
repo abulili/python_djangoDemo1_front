@@ -32,7 +32,7 @@ const Chat = () => {
     }, []);
 
     const sseStream = () => {
-        const url = `${process.env.REACT_APP_API_URL}/logs/stream2/`;
+        const url = `${import.meta.env.VITE_API_URL}/logs/stream2/`;
         fetch(url, {
             method: 'POST',
             headers: {
@@ -174,7 +174,7 @@ const Chat = () => {
     }
     const getTaskId = async (taskId) => {
         try {
-            const res = await request.get(`${process.env.REACT_APP_API_URL}/logs/task/${taskId}/`);
+            const res = await request.get(`${import.meta.env.VITE_API_URL}/logs/task/${taskId}/`);
             console.log('getTaskId', res)
             if (res.data.data?.status === 'success') {
                 setResponse(res.data.data.message?.response || '');
@@ -199,7 +199,7 @@ const Chat = () => {
 
     const singleChat = async () => {
         try {
-            const res = await request.post(`${process.env.REACT_APP_API_URL}/logs/call_company_ai3/`, {
+            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/call_company_ai3/`, {
                 prompt, conversation_id: conversationId, model
             });
             console.log('singleChat', res)
@@ -223,7 +223,7 @@ const Chat = () => {
         setResponse('');
 
         try {
-            const res = await request.post(`${process.env.REACT_APP_API_URL}/logs/`, {
+            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/`, {
                 prompt, conversation_id: conversationId
             });
             console.log('handleSubmit', res)

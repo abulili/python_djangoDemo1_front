@@ -15,7 +15,7 @@ const Login = () => {
         setLoading(true)
         try {
             // antd Form 的 onFinish 会把表单字段作为对象传入：{ username, password }
-            const response = await request.post(`${process.env.REACT_APP_API_URL}/token/`, values);
+            const response = await request.post(`${import.meta.env.VITE_API_URL}/token/`, values);
             console.log('Log handleSubmit', response.data)
             localStorage.setItem('access_token', response.data.access);
             localStorage.setItem('refresh_token', response.data.refresh);
