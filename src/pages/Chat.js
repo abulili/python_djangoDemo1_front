@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
+import request from '../utils/request';
 
 const { Header, Content } = Layout;
 const { TextArea } = Input;
@@ -173,7 +174,7 @@ const Chat = () => {
     }
     const getTaskId = async (taskId) => {
         try {
-            const res = await axios.get(`${process.env.REACT_APP_API_URL}/logs/task/${taskId}/`);
+            const res = await request.get(`${process.env.REACT_APP_API_URL}/logs/task/${taskId}/`);
             console.log('getTaskId', res)
             if (res.data.data?.status === 'success') {
                 setResponse(res.data.data.message?.response || '');
@@ -198,12 +199,8 @@ const Chat = () => {
 
     const singleChat = async () => {
         try {
-            const res = await axios.post(`${process.env.REACT_APP_API_URL}/logs/call_company_ai3/`, {
+            const res = await request.post(`${process.env.REACT_APP_API_URL}/logs/call_company_ai3/`, {
                 prompt, conversation_id: conversationId, model
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${getToken()}`
-                }
             });
             console.log('singleChat', res)
             if (res.data?.data?.task_id)
@@ -226,12 +223,8 @@ const Chat = () => {
         setResponse('');
 
         try {
-            const res = await axios.post(`${process.env.REACT_APP_API_URL}/logs/`, {
+            const res = await request.post(`${process.env.REACT_APP_API_URL}/logs/`, {
                 prompt, conversation_id: conversationId
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${getToken()}`
-                }
             });
             console.log('handleSubmit', res)
             const newConvId = res.data.data?.conversation_id;

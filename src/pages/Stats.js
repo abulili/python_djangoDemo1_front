@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Statistic, Button, Layout, Spin, message } from 'antd';
 import { ArrowLeftOutlined, PlusOutlined, RobotOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import './Stats.css';
+import request from '../utils/request';
 
-const {Header, Content} = Layout
+const { Header, Content } = Layout
 const Stats = () => {
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(false);
@@ -17,16 +18,12 @@ const Stats = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const response = await axios.get(`${process.env.REACT_APP_API_URL}/logs/stats/`, {
-                    headers: {
-                        'Authorization': `Bearer ${getToken()}`
-                    }
-                });
+                const response = await request.get(`${process.env.REACT_APP_API_URL}/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
                 if (error.response.status === 401) {
                     navigate('/');
-                } else 
+                } else
                     message.error('加载统计数据失败');
             } finally {
                 setLoading(false);
@@ -37,19 +34,19 @@ const Stats = () => {
     }, [navigate]);
 
     if (loading) {
-        return <Spin tip="加载中..." style={{display:'block', marginTop: 100}}></Spin>;
+        return <Spin tip="加载中..." style={{ display: 'block', marginTop: 100 }}></Spin>;
     }
 
     return (
-        <Layout style={{minHeight: '100vh'}}>
-            <Header style={{background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0'}}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}> 
+        <Layout style={{ minHeight: '100vh' }}>
+            <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <h2>AI 调用统计</h2>
                     <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志列表</Button>
                     <Button icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
                 </div>
             </Header>
-            <Content style={{padding: '24px'}}>
+            <Content style={{ padding: '24px' }}>
                 <Row gutter={16}>
                     <Col span={8}>
                         <Card className="stat-card">
