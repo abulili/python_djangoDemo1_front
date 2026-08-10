@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { Card, Row, Col, Statistic, Button, Layout, Spin, message } from 'antd';
+import { ArrowLeftOutlined, PlusOutlined, RobotOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import './Stats.css';
 
+const {Header, Content} = Layout
 const Stats = () => {
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(false);
@@ -22,7 +26,8 @@ const Stats = () => {
             } catch (error) {
                 if (error.response.status === 401) {
                     navigate('/');
-                }
+                } else 
+                    message.error('加载统计数据失败');
             } finally {
                 setLoading(false);
             }
@@ -32,37 +37,38 @@ const Stats = () => {
     }, [navigate]);
 
     if (loading) {
-        return <div>加载中...</div>;
-    }
-    if (!stats) {
-        return <div>暂无统计数据</div>;
+        return <Spin tip="加载中..." style={{display:'block', marginTop: 100}}></Spin>;
     }
 
     return (
-        <div>
-            <h2>AI 调用统计</h2>
-            <button onClick={() => navigate('/logs')}>返回日志列表</button>
-            <button onClick={() => navigate('/chat')}>发起对话</button>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '20px' }}>
-                <div style={{ border: '1px solid #ddd', padding: '16px', borderRadius: '8px' }}>
-                    <h3>总调用</h3>
-                    <p style={{ fontSize: '24px' }}>{stats.total}</p>
+        <Layout style={{minHeight: '100vh'}}>
+            <Header style={{background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0'}}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}> 
+                    <h2>AI 调用统计</h2>
+                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志列表</Button>
+                    <Button icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
                 </div>
-                <div style={{ border: '1px solid #ddd', padding: '16px', borderRadius: '8px' }}>
-                    <h3>成功率</h3>
-                    <p style={{ fontSize: '24px', color: stats.success_rate > 80 ? 'green' : 'orange' }}>
-                        {stats.success_rate}
-                    </p>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '16px', borderRadius: '8px' }}>
-                    <h3>平均耗时</h3>
-                    <p style={{ fontSize: '24px' }}>{stats.avg_duration}s</p>
-                </div>
-
-
-            </div>
-        </div>
+            </Header>
+            <Content style={{padding: '24px'}}>
+                <Row gutter={16}>
+                    <Col span={8}>
+                        <Card className="stat-card">
+                            <Statistic title="总调用次数" value={stats?.total || 0} prefix={<RobotOutlined />} />
+                        </Card>
+                    </Col>
+                    <Col span={8}>
+                        <Card className="stat-card">
+                            <Statistic title="成功率" value={stats?.success_rate || '0%'} prefix={<CheckCircleOutlined />} />
+                        </Card>
+                    </Col>
+                    <Col span={8}>
+                        <Card className="stat-card">
+                            <Statistic title="平均耗时" value={stats?.avg_duration || 0} suffix="s" prefix={<ClockCircleOutlined />} />
+                        </Card>
+                    </Col>
+                </Row>
+            </Content>
+        </Layout>
     );
 }
 
