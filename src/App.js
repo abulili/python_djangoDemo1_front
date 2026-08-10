@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import LogList from './pages/LogList';
 import Chat from './pages/Chat';
 import Stats from './pages/Stats';
+import 'antd/dist/reset.css';
 
 function App() {
   return (

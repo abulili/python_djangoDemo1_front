@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Layout, Input, Button, Card, Space, message, Spin, Typography } from 'antd';
+import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
+
+const { Header, Content } = Layout;
+const { TextArea } = Input;
 
 const Chat = () => {
     const [prompt, setPrompt] = useState('');
@@ -245,35 +250,37 @@ const Chat = () => {
 
 
     return (
-        <div>
-            <h2>AI对话</h2>
-            <button onClick={() => navigate('/logs')}>返回日志列表</button>
-            <button onClick={() => navigate('/stats')}>查看统计</button>
-            <button onClick={() => setStreamStream(!streamStream)}>当前流式，{streamStream ? '已开启' : '已关闭'}</button>
-            {!streamStream && <button onClick={() => setModel(model === 'deepseek' ? 'agnes' : 'deepseek')}>切换模型，当前：{model}</button>}
-
-            {conversationId && <p style={{ fontSize: '12px', color: '#888' }}>会话ID: {conversationId}</p>}
-
-            <form onSubmit={handleSubmit}>
-                <label>
-                    消息：
-                    <textarea style={{ width: '100%', padding: '8px' }}
-                        disabled={loading} placeholder="请输入消息" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-                </label>
-                <button type="submit" disabled={loading}>
-                    {loading ? '正在思考...' : '发送'}
-                </button>
-            </form>
-
-            {response && (
-                <div style={{ marginTop: '20px', border: '1px solid #ddd', padding: '16px', borderRadius: '8px', whiteSpace: 'pre-wrap' }}>
-                    <strong>AI 回复：</strong>
-                    {response}
-                    {loading && <span style={{ color: '#888' }}> ▊</span>}
+        <Layout style={{ minHeight: '100vh' }}>
+            <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
+                    <h2>AI 对话</h2>
+                    <Space>
+                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
+                        <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button>
+                        <Button icon={<SwapOutlined />} onClick={() => setStreamStream(!streamStream)}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
+                        {!streamStream && <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={() => setModel(model === 'deepseek' ? 'agnes' : 'deepseek')}>切换模型，当前：{model}</Button>}
+                    </Space>
                 </div>
-            )}
-
-        </div>
+            </Header>
+            <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
+                <Card style={{ flex: 1, minHeight: 200, background: '#f5f5f5' }}>
+                    <Spin spinning={loading} tip="AI 正在思考...">
+                        <div style={{ whiteSpace: 'pre-wrap', minHeight: 100 }}>
+                            {response || <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>}
+                        </div>
+                    </Spin>
+                </Card>
+                <form onSubmit={handleSubmit}>
+                    <Space.Compact style={{ width: '100%' }}>
+                        <TextArea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="请输入消息..." rows={3} disabled={loading} style={{ flex: '1' }}></TextArea>
+                        <Button type="primary" htmlType="submit" loading={loading} icon={<SendOutlined />} disabled={loading} style={{ height: 'auto' }}>
+                            {loading ? '正在思考...' : '发送'}
+                        </Button>
+                    </Space.Compact>
+                </form>
+            </Content>
+        </Layout>
     )
 }
 export default Chat;
