@@ -249,7 +249,7 @@ const Chat = () => {
                     <h2>AI 对话</h2>
                     <Space>
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
-                        <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button>
+                        {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
                         <Button icon={<SwapOutlined />} onClick={() => setStreamStream(!streamStream)}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
                         {!streamStream && <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={() => setModel(model === 'deepseek' ? 'agnes' : 'deepseek')}>切换模型，当前：{model}</Button>}
                     </Space>

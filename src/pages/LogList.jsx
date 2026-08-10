@@ -39,15 +39,15 @@ const Stats = () => {
     }
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
+        <Layout>
+            {/* <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <h2>AI 调用统计</h2>
                     <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志列表</Button>
                     <Button icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
                 </div>
-            </Header>
-            <Content style={{ padding: '24px' }}>
+            </Header> */}
+            <Content>
                 <Row gutter={16}>
                     <Col span={8}>
                         <Card className="stat-card">
@@ -114,7 +114,7 @@ const LogList = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <Title level={3} style={{ margin: 0 }}>AI 调用日志 </Title>
                     <Space>
-                        <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button>
+                        {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
                         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchLogs}>刷新</Button>
                     </Space>
@@ -123,7 +123,7 @@ const LogList = () => {
 
             </Header>
             <Content style={{ padding: '24px' }}>
-                {/* <Stats /> */}
+                <Stats />
                 <Spin spinning={loading}>
                     <Table columns={columns} dataSource={logs} rowKey="id" pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }} />
                 </Spin>
