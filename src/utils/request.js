@@ -42,7 +42,7 @@ request.interceptors.response.use(
 
             try {
                 // 调用刷新接口
-                const res = await axios.post(`${API_URL}/auth/refresh/`,
+                const res = await axios.post(`${API_URL}/token/refresh/`,
                     {
                         refresh: refreshToken
                     }
