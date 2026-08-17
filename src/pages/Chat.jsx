@@ -199,16 +199,21 @@ const Chat = () => {
 
     const singleChat = async () => {
         try {
-            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/call_company_ai3/`, {
+            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/call_company_ai4/`, {
                 prompt, conversation_id: conversationId, model
             });
             console.log('singleChat', res)
-            if (res.data?.data?.task_id)
+            if (res.data?.data?.task_id) {
                 if (getTaskTimerRef.current === null) {
                     getTaskTimerRef.current = setInterval(() => getTaskId(res.data?.data?.task_id), 1000);
                 }
                 else
                     setResponse('请求失败: ' + res.data.message);
+            }
+                
+            if (res.data?.data?.conversation_id) {
+                setConversationId(res.data?.data?.conversation_id);
+            }
         } catch (error) {
         }
     }
@@ -222,20 +227,20 @@ const Chat = () => {
         setLoading(true);
         setResponse('');
 
-        try {
-            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/`, {
-                prompt, conversation_id: conversationId
-            });
-            console.log('handleSubmit', res)
-            const newConvId = res.data.data?.conversation_id;
-            if (newConvId) {
-                setConversationId(newConvId);
-            }
-        } catch (error) {
-            if (error.response.status === 401) {
-                navigate('/');
-            }
-        }
+        // try {
+        //     const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/`, {
+        //         prompt, conversation_id: conversationId
+        //     });
+        //     console.log('handleSubmit', res)
+        //     const newConvId = res.data.data?.conversation_id;
+        //     if (newConvId) {
+        //         setConversationId(newConvId);
+        //     }
+        // } catch (error) {
+        //     if (error.response.status === 401) {
+        //         navigate('/');
+        //     }
+        // }
         if (streamStream)
             sseStream();
         else singleChat();
