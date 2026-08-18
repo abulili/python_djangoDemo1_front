@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Layout, Input, Button, Card, Space, message, Spin, Typography } from 'antd';
-import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
+import { Layout, Input, Button, Card, Space, message, Spin, Typography,Select } from 'antd';
+import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined   } from '@ant-design/icons';
 import request from '../utils/request';
 
 const { Header, Content } = Layout;
@@ -17,6 +17,10 @@ const Chat = () => {
 
     const [streamStream, setStreamStream] = useState(true);
 
+    const [templates, setTemplates] = useState([])
+    const [selectedTemplate, setSelectedTemplate] = useState(null)
+    const [templetVars, setTemplatesVars] = useState({})
+
     const navigate = useNavigate();
     const getToken = () => localStorage.getItem('access_token');
 
@@ -30,6 +34,36 @@ const Chat = () => {
             }
         };
     }, []);
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const res = await request.get('/prompt-templates/', {
+                    params: {is_active: true}
+                })
+                setTemplates(Array.isArray(res.data) ? res.data :[])
+            } catch (error) {
+                console.warn('load prompt templates failed', error);
+            }
+        }
+        fetchTemplates()
+    }, [])
+
+    const handleTemplateChange = (templateId) => {
+        const template = templates.find((item) => item.id === templateId) || null
+        setSelectedTemplate(template);
+        const nextVars = {};
+        (template?.variables || []).forEach((name) => {
+            nextVars[name] = name === 'user_input' ? prompt : ''
+        })
+        setTemplatesVars(nextVars)
+    }
+
+    const handleTemplateVarChange = (name, value) => {
+        setTemplatesVars((prev) => ({
+            ...prev,
+           [name]: value // [name] 是动态 key
+        }))
+    }
 
     const sseStream = () => {
         const url = `${import.meta.env.VITE_API_URL}/logs/stream2/`;
@@ -185,10 +219,11 @@ const Chat = () => {
             }
             else if (res.data.data?.status === 'processing' || res.data.data?.status === 'pending');
             else {
-                setResponse('请求失败: ' + res.data.message);
+                setResponse('请求失败: ' + res.data.data.message);
                 clearInterval(getTaskTimerRef.current);
                 getTaskTimerRef.current = null;
                 setPrompt('');
+                setLoading(false)
             }
 
 
@@ -199,9 +234,17 @@ const Chat = () => {
 
     const singleChat = async () => {
         try {
-            const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/call_company_ai4/`, {
-                prompt, conversation_id: conversationId, model
-            });
+            const payload = {
+                 prompt, conversation_id: conversationId, model
+            }
+            if (selectedTemplate) {
+                payload.template_name = selectedTemplate.name;
+                payload.template_vars = {
+                    ...templetVars,
+                    user_input: prompt
+                };
+            }
+            const res = await request.post(`/logs/call_company_ai4/`, payload);
             console.log('singleChat', res)
             if (res.data?.data?.task_id) {
                 if (getTaskTimerRef.current === null) {
@@ -262,8 +305,31 @@ const Chat = () => {
             </Header>
             <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
+                {!streamStream && (
+                    <Card direction="vertical" style={{width: '100%'}}>
+                        <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
+                            value={selectedTemplate?.id}
+                            onChange={handleTemplateChange}
+                            options={templates.map(template => ({
+                                label: template.name,
+                                value: template.id
+                            }))}
+                        ></Select>
+                        {selectedTemplate?.variables?.map(name => (
+                            <Space.Compact key={name} style={{width: '100%', margin: '4px 0'}}>
+                                <Space.Addon>{name}</Space.Addon>
+                                <Input key={name}
+                                value={name === 'user_input' ? prompt : (templetVars[name] ?? '')}
+                                    onChange={(e) => handleTemplateVarChange(name, e.target.value)}
+                                disabled={name === 'user_input'}
+                                />
+                            </Space.Compact>
+                            
+                        ))}
+                    </Card>
+                )}
                 <Card style={{ flex: 1, minHeight: 200, background: '#f5f5f5' }}>
-                    <Spin spinning={loading} tip="AI 正在思考...">
+                    <Spin spinning={loading} description="AI 正在思考...">
                         <div style={{ whiteSpace: 'pre-wrap', minHeight: 100 }}>
                             {response || <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>}
                         </div>

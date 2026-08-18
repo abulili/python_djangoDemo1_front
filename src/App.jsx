@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import LogList from './pages/LogList';
 import Chat from './pages/Chat';
 import Stats from './pages/Stats';
+import PromptTemplates from './pages/PromptTemplates';
 import 'antd/dist/reset.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="/logs" element={<LogList />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/prompt-templates" element={<PromptTemplates />} />
         </Routes>
       </BrowserRouter>
       {/* <header className="App-header">

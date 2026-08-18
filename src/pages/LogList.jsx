@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Space, Tag, Layout, Typography, message, Spin, Card, Row, Col, Statistic } from 'antd'
-import { ReloadOutlined, PlusOutlined, BarChartOutlined, ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlusOutlined, BarChartOutlined, ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, FileTextOutlined } from '@ant-design/icons';
 import request from '../utils/request';
 
 const { Header, Content } = Layout;
@@ -116,6 +116,12 @@ const LogList = () => {
                     <Space>
                         {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
                         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
+                        <Button
+                            icon={<FileTextOutlined />}
+                            onClick={() => navigate('/prompt-templates')}
+                        >
+                            Prompt 模板
+                        </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchLogs}>刷新</Button>
                     </Space>
 
