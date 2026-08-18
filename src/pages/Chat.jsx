@@ -16,10 +16,14 @@ const Chat = () => {
     const [model, setModel] = useState('deepseek');
 
     const [streamStream, setStreamStream] = useState(true);
-
+    // 模板
     const [templates, setTemplates] = useState([])
     const [selectedTemplate, setSelectedTemplate] = useState(null)
     const [templetVars, setTemplatesVars] = useState({})
+    // 会话历史
+    const [conversations, setConversations] = useState([])
+    const [conversationLoading, setConversationLoading] = useState(false)
+
 
     const navigate = useNavigate();
     const getToken = () => localStorage.getItem('access_token');
@@ -34,6 +38,61 @@ const Chat = () => {
             }
         };
     }, []);
+
+    // ====== 会话历史
+    const fetchConversations = async () => {
+        try {
+            setConversationLoading(true);
+
+            const res = await request.get('/logs/conversations');
+            setConversations(res.data?.data || []);
+        } catch (error) {
+            if(error.response?.status === 401) {
+                navigate('/');
+                return;
+            }
+            message.error('加载会话列表失败');
+        } finally {
+            setConversationLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchConversations()
+    }, [])
+
+    const openConversation = async (id) => {
+        try {
+            setLoading(true);
+            setResponse('');
+            setConversationId(id);
+
+            const res = await request.get(`/logs/conversation/${id}/`);
+            const history = res.data?.data?.history || [];
+            const text = history.map((item) => {
+                const roleName = item.role === 'user' ? '我' : 'AI';
+                return `${roleName}：${item.content || ''}`
+            }).join('\n\n');
+
+            setResponse(text || '这个会话暂无历史记录')
+        } catch (error) {
+            if (error.response?.status === 401) {
+                navigate('/');
+                return;
+            }
+            message.error('加载会话历史失败');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const createNewConversation = () => {
+        setConversationId('');
+        setResponse('');
+        setPrompt('');
+    }
+
+    // ====== 模板
     useEffect(() => {
         const fetchTemplates = async () => {
             try {
@@ -216,6 +275,7 @@ const Chat = () => {
                 getTaskTimerRef.current = null;
                 setPrompt('');
                 setLoading(false);
+                fetchConversations();
             }
             else if (res.data.data?.status === 'processing' || res.data.data?.status === 'pending');
             else {
@@ -256,6 +316,7 @@ const Chat = () => {
                 
             if (res.data?.data?.conversation_id) {
                 setConversationId(res.data?.data?.conversation_id);
+                fetchConversations()
             }
         } catch (error) {
         }
@@ -305,6 +366,24 @@ const Chat = () => {
             </Header>
             <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
+
+                <Card size='small' title='会话历史'>
+                    <Space direction='vertical' style={{ width: '100%' }}>
+                        <Space>
+                            <Button onClick={fetchConversations} loading={conversationLoading}>刷新会话</Button>
+                            <Button onClick={createNewConversation} type='primary'>新建会话</Button>
+                        </Space>
+                    </Space>
+
+                    <Space wrap>
+                        {conversations.map((item) => (
+                        <Button key={item.conversationId} type={item.conversationId === conversationId ? 'primary' : 'default'} onClick={() => openConversation(item.conversation_id)}> 
+                                {item.conversation_id.slice(0, 8)}（{ item.total}）
+                        </Button>
+                    ))}
+                    </Space>
+                </Card>
+
                 {!streamStream && (
                     <Card direction="vertical" style={{width: '100%'}}>
                         <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
