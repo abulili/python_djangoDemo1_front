@@ -99,7 +99,8 @@ const Chat = () => {
                 const res = await request.get('/prompt-templates/', {
                     params: {is_active: true}
                 })
-                setTemplates(Array.isArray(res.data) ? res.data :[])
+                const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+                setTemplates(list);
             } catch (error) {
                 console.warn('load prompt templates failed', error);
             }

@@ -114,7 +114,9 @@ const PromptTemplates = () => {
                 params: keyword ? { keyword } : {}
             })
             console.log('fetchTemplates', res.data)
-            setTemplates(Array.isArray(res.data) ? res.data : [])
+            const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+            setTemplates(list);
+            // setTemplates(Array.isArray(res.data) ? res.data : [])
 
         } catch (error) {
             if (error.response?.state === 401) {
