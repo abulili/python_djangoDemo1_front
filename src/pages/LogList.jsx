@@ -19,7 +19,7 @@ const Stats = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const response = await request.get(`${import.meta.env.VITE_API_URL}/logs/stats/`);
+                const response = await request.get(`/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
                 if (error.response.status === 401) {
@@ -48,23 +48,86 @@ const Stats = () => {
                 </div>
             </Header> */}
             <Content>
-                <Row gutter={16}>
-                    <Col span={8}>
+                <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="总调用次数" value={stats?.total || 0} prefix={<RobotOutlined />} />
                         </Card>
                     </Col>
-                    <Col span={8}>
+
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card className="stat-card">
+                            <Statistic title="今日调用" value={stats?.today_total || 0} />
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="成功率" value={stats?.success_rate || '0%'} prefix={<CheckCircleOutlined />} />
                         </Card>
                     </Col>
-                    <Col span={8}>
+
+                    <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="平均耗时" value={stats?.avg_duration || 0} suffix="s" prefix={<ClockCircleOutlined />} />
                         </Card>
                     </Col>
+
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card className="stat-card">
+                            <Statistic title="总 Token" value={stats?.total_tokens || 0} />
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card className="stat-card">
+                            <Statistic title="今日 Token" value={stats?.today_tokens || 0} />
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card className="stat-card">
+                            <Statistic title="总费用" value={stats?.total_cost || 0} prefix="￥" precision={2} />
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card className="stat-card">
+                            <Statistic title="今日费用" value={stats?.today_cost || 0} prefix="￥" precision={2} />
+                        </Card>
+                    </Col>
                 </Row>
+                <Card title="模型调用分布" size="small" style={{ marginTop: 16 }}>
+                    <Table
+                        size="small"
+                        rowKey="model_name"
+                        pagination={false}
+                        dataSource={stats?.model_stats || []}
+                        columns={[
+                            { title: '模型', dataIndex: 'model_name' },
+                            { title: '调用次数', dataIndex: 'total' },
+                            { title: '成功次数', dataIndex: 'success_count' },
+                            { title: '平均耗时', dataIndex: 'avg_duration', render: (value) => `${value}s` },
+                            { title: 'Token', dataIndex: 'total_tokens' },
+                            { title: '费用', dataIndex: 'total_cost', render: (value) => `￥${value}` },
+                        ]}
+                    />
+                </Card>
+                <Card title="近 7 天趋势" size="small" style={{ marginTop: 16 }}>
+                    <Table
+                        size="small"
+                        rowKey="day"
+                        pagination={false}
+                        dataSource={stats?.daily_stats || []}
+                        columns={[
+                            { title: '日期', dataIndex: 'day' },
+                            { title: '调用次数', dataIndex: 'total' },
+                            { title: '成功次数', dataIndex: 'success_count' },
+                            { title: 'Token', dataIndex: 'total_tokens' },
+                            { title: '费用', dataIndex: 'total_cost', render: (value) => `￥${value}` },
+                        ]}
+                    />
+                </Card>
             </Content>
         </Layout>
     );
@@ -90,9 +153,9 @@ const LogList = () => {
             // Object.entries(filters) -把对象变成数组 过滤空值后再变回对象
             // const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value !== ''));
             const params = Object.fromEntries(
-            Object.entries(nextFilters).filter(([, value]) => value !== '')
+                Object.entries(nextFilters).filter(([, value]) => value !== '')
             );
-            console.log('fetchLogs',params,nextFilters)
+            console.log('fetchLogs', params, nextFilters)
             const res = await request.get(`/logs/`, { params });
             console.log('fetchLogs', res)
             setLogs(res.data || []);
