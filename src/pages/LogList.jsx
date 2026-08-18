@@ -145,9 +145,17 @@ const LogList = () => {
         conversation_id: ''
     })
 
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+        total: 0,
+    });
+
     const getToken = () => localStorage.getItem('access_token');
 
-    const fetchLogs = async (nextFilters = filters) => { // 没传值默认传filters
+    const fetchLogs = async (nextFilters = filters,
+        page = pagination.current,
+        pageSize = pagination.pageSize) => { // 没传值默认传filters
         try {
             setLoading(true);
             // Object.entries(filters) -把对象变成数组 过滤空值后再变回对象
@@ -155,10 +163,17 @@ const LogList = () => {
             const params = Object.fromEntries(
                 Object.entries(nextFilters).filter(([, value]) => value !== '')
             );
+            params.page = page;
             console.log('fetchLogs', params, nextFilters)
             const res = await request.get(`/logs/`, { params });
             console.log('fetchLogs', res)
-            setLogs(res.data || []);
+            setLogs(res.data?.results || []);
+            setPagination((prev) => ({
+                ...prev,
+                current: page,
+                pageSize,
+                total: res.data?.count || 0,
+            }));
         } catch (error) {
             if (error.response?.status === 401) {
                 navigate('/');
@@ -181,7 +196,7 @@ const LogList = () => {
         };
 
         setFilters(emptyFilters);
-        fetchLogs(emptyFilters);
+        fetchLogs(emptyFilters, 1, pagination.pageSize);
     };
 
     const columns = [
@@ -251,7 +266,7 @@ const LogList = () => {
                                 { label: '失败', value: 'false' },
                             ]}
                         />
-                        <Button type="primary" onClick={() => fetchLogs()}>
+                        <Button type="primary" onClick={() => fetchLogs(filters, 1, pagination.pageSize)}>
                             查询
                         </Button>
 
@@ -263,7 +278,17 @@ const LogList = () => {
                     </Space>
                 </Card>
                 <Spin spinning={loading}>
-                    <Table columns={columns} dataSource={logs} rowKey="id" pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }} />
+                    <Table columns={columns} dataSource={logs} rowKey="id" loading={loading} pagination={{
+                        current: pagination.current,
+                        pageSize: pagination.pageSize,
+                        total: pagination.total,
+                        showSizeChanger: false,
+                        position: ['bottomCenter'],
+                        showTotal: (total) => `共 ${total} 条`,
+                    }}
+                    onChange={(nextPagination) => {
+                        fetchLogs(filters, nextPagination.current, nextPagination.pageSize);
+                    }} />
                 </Spin>
             </Content>
         </Layout>
