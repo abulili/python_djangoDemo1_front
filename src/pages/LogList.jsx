@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Space, Tag, Layout, Typography, message, Spin, Card, Row, Col, Statistic } from 'antd'
+import { Table, Button, Space, Tag, Layout, Typography, message, Spin, Card, Row, Col, Statistic, Input, Select, } from 'antd'
 import { ReloadOutlined, PlusOutlined, BarChartOutlined, ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, FileTextOutlined } from '@ant-design/icons';
 import request from '../utils/request';
 
@@ -75,11 +75,25 @@ const LogList = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
+    const [filters, setFilters] = useState({
+        keyword: '',
+        model_name: '',
+        success: '',
+        conversation_id: ''
+    })
+
     const getToken = () => localStorage.getItem('access_token');
 
-    const fetchLogs = async () => {
+    const fetchLogs = async (nextFilters = filters) => { // 没传值默认传filters
         try {
-            const res = await request.get(`${import.meta.env.VITE_API_URL}/logs/`);
+            setLoading(true);
+            // Object.entries(filters) -把对象变成数组 过滤空值后再变回对象
+            // const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value !== ''));
+            const params = Object.fromEntries(
+            Object.entries(nextFilters).filter(([, value]) => value !== '')
+            );
+            console.log('fetchLogs',params,nextFilters)
+            const res = await request.get(`/logs/`, { params });
             console.log('fetchLogs', res)
             setLogs(res.data || []);
         } catch (error) {
@@ -93,6 +107,19 @@ const LogList = () => {
     useEffect(() => {
         fetchLogs();
     }, [navigate]);
+
+    // 上面的重置只是清空状态，不一定立即刷新，因为 React setState 是异步的。 简单做法：加一个函数。
+    const resetFilters = () => {
+        const emptyFilters = {
+            keyword: '',
+            model_name: '',
+            success: '',
+            conversation_id: '',
+        };
+
+        setFilters(emptyFilters);
+        fetchLogs(emptyFilters);
+    };
 
     const columns = [
         { title: 'ID', dataIndex: 'id', width: 60 },
@@ -130,6 +157,48 @@ const LogList = () => {
             </Header>
             <Content style={{ padding: '24px' }}>
                 <Stats />
+                <Card size="small" style={{ margin: '16px 0' }}>
+                    <Space warp>
+                        <Input allowClear placeholder='关键词' value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} style={{ width: 200 }}></Input>
+                        <Input allowClear placeholder='会话ID' value={filters.conversation_id} onChange={(event) =>
+                            setFilters((prev) => ({ ...prev, conversation_id: event.target.value }))} style={{ width: 260 }} />
+                        <Select
+                            allowClear
+                            placeholder="模型"
+                            value={filters.model_name || undefined}
+                            onChange={(value) =>
+                                setFilters((prev) => ({ ...prev, model_name: value || '' }))
+                            }
+                            style={{ width: 160 }}
+                            options={[
+                                { label: 'deepseek', value: 'deepseek' },
+                                { label: 'agnes', value: 'agnes' },
+                            ]}
+                        />
+                        <Select
+                            allowClear
+                            placeholder="状态"
+                            value={filters.success || undefined}
+                            onChange={(value) =>
+                                setFilters((prev) => ({ ...prev, success: value || '' }))
+                            }
+                            style={{ width: 140 }}
+                            options={[
+                                { label: '成功', value: 'true' },
+                                { label: '失败', value: 'false' },
+                            ]}
+                        />
+                        <Button type="primary" onClick={() => fetchLogs()}>
+                            查询
+                        </Button>
+
+                        <Button
+                            onClick={resetFilters}
+                        >
+                            重置
+                        </Button>
+                    </Space>
+                </Card>
                 <Spin spinning={loading}>
                     <Table columns={columns} dataSource={logs} rowKey="id" pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }} />
                 </Spin>
