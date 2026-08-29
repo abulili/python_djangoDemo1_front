@@ -41,6 +41,31 @@ const Chat = () => {
 
     const getTaskTimerRef = React.useRef(null);
     const streamControllerRef = React.useRef(null);
+    const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
+    const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
+    
+    // 打字机效果
+    const startTyping = () => {
+        if (typingTimerRef.current) return;
+
+        typingTimerRef.current = setInterval(() => {
+            if (!pendingTextRef.current) {
+                clearInterval(typingTimerRef.current);
+                typingTimerRef.current = null;
+                return;
+            }
+            const nextChar = pendingTextRef.current[0];
+            pendingTextRef.current = pendingTextRef.current.slice(1);
+
+            setResponse(prev => prev + nextChar);
+        }, 30);
+    }
+
+    const appendTypingText = (text) => {
+        pendingTextRef.current += text;
+        startTyping();
+    }
+    
     useEffect(() => {
         return () => {
             if (getTaskTimerRef.current) {
@@ -51,6 +76,12 @@ const Chat = () => {
             if (streamControllerRef.current) { // 停止请求
                 streamControllerRef.current.abort();
                 streamControllerRef.current = null;
+            }
+
+            pendingTextRef.current = '';
+            if (typingTimerRef.current) {
+                clearInterval(typingTimerRef.current);
+                typingTimerRef.current = null;
             }
         };
     }, []);
@@ -182,6 +213,7 @@ const Chat = () => {
                     if (done) {
                         setLoading(false); // 停止加载状态
                         streamControllerRef.current = null;
+                        setPrompt('');
                         return; // 结束当前读取
                     }
                     // 将二进制字节数据解码为字符串文本
@@ -268,11 +300,13 @@ const Chat = () => {
                                     }
 
                                     if (data.content) {
-                                        setResponse(prev => prev + data.content);
+                                        // setResponse(prev => prev + data.content);
+                                        appendTypingText(data.content);
                                     }
                                     if (data.done) {
                                         setLoading(false);
                                         streamControllerRef.current = null;
+                                        setPrompt('');
                                         fetchConversations();//刷新会话列表
                                     }
                                     if (data.error) {
@@ -337,6 +371,14 @@ const Chat = () => {
             streamControllerRef.current.abort()
             streamControllerRef.current = null
         }
+
+        pendingTextRef.current = '';
+
+        if (typingTimerRef.current) {
+            clearInterval(typingTimerRef.current);
+            typingTimerRef.current = null;
+        }
+
         setLoading(false)
     }
 
@@ -378,6 +420,13 @@ const Chat = () => {
 
         setLoading(true);
         setResponse('');
+
+        pendingTextRef.current = '';
+
+        if (typingTimerRef.current) {
+            clearInterval(typingTimerRef.current);
+            typingTimerRef.current = null;
+        }
 
         // try {
         //     const res = await request.post(`${import.meta.env.VITE_API_URL}/logs/`, {
