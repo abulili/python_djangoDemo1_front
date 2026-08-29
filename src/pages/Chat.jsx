@@ -150,7 +150,7 @@ const Chat = () => {
         const controller = new AbortController();
         streamControllerRef.current = controller;
 
-        const url = `${import.meta.env.VITE_API_URL}/logs/stream2/`;
+        const url = `${import.meta.env.VITE_API_URL}/logs/stream3/`;
         fetch(url, {
             method: 'POST',
             headers: {
@@ -158,7 +158,7 @@ const Chat = () => {
                 'Authorization': `Bearer ${getToken()}`
             },
             body: JSON.stringify({
-                prompt, conversation_id: conversationId
+                prompt, model, conversation_id: conversationId
             }),
             signal: controller.signal,
         }).then(response => {
@@ -260,13 +260,20 @@ const Chat = () => {
                                 }
                                 const { json, rest } = extracted;
                                 try {
+                                    
                                     const data = JSON.parse(json);
+
+                                    if (data.conversation_id) {
+                                        setConversationId(data.conversation_id)
+                                    }
+
                                     if (data.content) {
                                         setResponse(prev => prev + data.content);
                                     }
                                     if (data.done) {
                                         setLoading(false);
                                         streamControllerRef.current = null;
+                                        fetchConversations();//刷新会话列表
                                     }
                                     if (data.error) {
                                         setResponse('错误: ' + data.error);
@@ -401,7 +408,7 @@ const Chat = () => {
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
                         {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
                         <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
-                        {!streamStream && <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>}
+                        <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>
                     </Space>
                 </div>
             </Header>
