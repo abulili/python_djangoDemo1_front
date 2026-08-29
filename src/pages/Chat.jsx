@@ -4,18 +4,28 @@ import axios from 'axios';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography,Select } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined   } from '@ant-design/icons';
 import request from '../utils/request';
+import useChatStore from '../store/useChatStore';
 
 const { Header, Content } = Layout;
 const { TextArea } = Input;
 
 const Chat = () => {
     const [prompt, setPrompt] = useState('');
-    const [conversationId, setConversationId] = useState('');
+    // const [conversationId, setConversationId] = useState('');
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState('');
-    const [model, setModel] = useState('deepseek');
+    // const [model, setModel] = useState('deepseek');
+    const {
+        conversationId,
+        model,
+        streamStream,
+        setConversationId,
+        toggleModel,
+        toggleStreamStream,
+        resetConversation,
+    } = useChatStore();
 
-    const [streamStream, setStreamStream] = useState(true);
+    // const [streamStream, setStreamStream] = useState(true);
     // 模板
     const [templates, setTemplates] = useState([])
     const [selectedTemplate, setSelectedTemplate] = useState(null)
@@ -93,7 +103,8 @@ const Chat = () => {
     }
 
     const createNewConversation = () => {
-        setConversationId('');
+        // setConversationId('');
+        resetConversation();
         setResponse('');
         setPrompt('');
     }
@@ -389,8 +400,8 @@ const Chat = () => {
                     <Space>
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
                         {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
-                        <Button icon={<SwapOutlined />} onClick={() => setStreamStream(!streamStream)}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
-                        {!streamStream && <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={() => setModel(model === 'deepseek' ? 'agnes' : 'deepseek')}>切换模型，当前：{model}</Button>}
+                        <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
+                        {!streamStream && <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>}
                     </Space>
                 </div>
             </Header>
