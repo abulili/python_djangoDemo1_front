@@ -30,11 +30,17 @@ const Chat = () => {
 
 
     const getTaskTimerRef = React.useRef(null);
+    const streamControllerRef = React.useRef(null);
     useEffect(() => {
         return () => {
             if (getTaskTimerRef.current) {
                 clearInterval(getTaskTimerRef.current);
                 getTaskTimerRef.current = null;
+            }
+
+            if (streamControllerRef.current) { // 停止请求
+                streamControllerRef.current.abort();
+                streamControllerRef.current = null;
             }
         };
     }, []);
@@ -126,6 +132,13 @@ const Chat = () => {
     }
 
     const sseStream = () => {
+        if (streamControllerRef.current) {
+            streamControllerRef.current.abort()
+        }
+
+        const controller = new AbortController();
+        streamControllerRef.current = controller;
+
         const url = `${import.meta.env.VITE_API_URL}/logs/stream2/`;
         fetch(url, {
             method: 'POST',
@@ -135,7 +148,8 @@ const Chat = () => {
             },
             body: JSON.stringify({
                 prompt, conversation_id: conversationId
-            })
+            }),
+            signal: controller.signal,
         }).then(response => {
 
             // console.log('sseStream', response)
@@ -156,6 +170,7 @@ const Chat = () => {
                     // done为true表示流已经读取完毕，没有更多数据了
                     if (done) {
                         setLoading(false); // 停止加载状态
+                        streamControllerRef.current = null;
                         return; // 结束当前读取
                     }
                     // 将二进制字节数据解码为字符串文本
@@ -240,6 +255,7 @@ const Chat = () => {
                                     }
                                     if (data.done) {
                                         setLoading(false);
+                                        streamControllerRef.current = null;
                                     }
                                     if (data.error) {
                                         setResponse('错误: ' + data.error);
@@ -256,9 +272,14 @@ const Chat = () => {
                     });
                     readStream()
                 }).catch(err => {
+                    if (err.name === 'AbortError') {
+                        console.log('SSE请求已取消')
+                        return;
+                    }
                     console.error('读取流失败:', err);
                     setResponse('请求失败: ' + err.message);
                     setLoading(false);
+                    streamControllerRef.current = null;
                 });
             }
             readStream()
@@ -291,6 +312,14 @@ const Chat = () => {
         } catch (error) {
             setResponse('请求失败: ' + error.message);
         }
+    }
+    // 手动停止流式输出
+    const stopStream = () => {
+        if (streamControllerRef.current) {
+            streamControllerRef.current.abort()
+            streamControllerRef.current = null
+        }
+        setLoading(false)
     }
 
     const singleChat = async () => {
@@ -421,6 +450,7 @@ const Chat = () => {
                         <Button type="primary" htmlType="submit" loading={loading} icon={<SendOutlined />} disabled={loading} style={{ height: 'auto' }}>
                             {loading ? '正在思考...' : '发送'}
                         </Button>
+                        {streamStream && loading && <Button danger onClick={stopStream}>停止生成</Button>}
                     </Space.Compact>
                 </form>
             </Content>
