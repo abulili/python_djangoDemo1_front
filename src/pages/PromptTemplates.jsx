@@ -119,7 +119,7 @@ const PromptTemplates = () => {
             // setTemplates(Array.isArray(res.data) ? res.data : [])
 
         } catch (error) {
-            if (error.response?.state === 401) {
+            if (error.response?.status === 401) {
                 navigate('/')
                 return;
             }

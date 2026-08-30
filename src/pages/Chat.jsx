@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
-import request from '../utils/request';
+import request,{ refreshAccessToken } from '../utils/request';
 import useChatStore from '../store/useChatStore';
 
 const { Header, Content, Sider } = Layout;
@@ -44,6 +44,34 @@ const Chat = () => {
     const streamControllerRef = React.useRef(null);
     const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
     const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
+
+    //
+    const fetchWithAuth = async (url, options = {}) => {
+        console.log('过来吗',options)
+        const accessToken = localStorage.getItem("access_token")
+
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {})
+            }
+        })
+
+        if (response.status !== 401) {
+            return response
+        }
+
+        const newAccessToken = await refreshAccessToken()
+
+        return fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${newAccessToken}`
+            }   
+        })
+
+    }
 
     // 加载会话列表
     const loadConversations = async () => {
@@ -198,7 +226,7 @@ const Chat = () => {
         streamControllerRef.current = controller;
 
         const url = `${import.meta.env.VITE_API_URL}/logs/stream3/`;
-        fetch(url, {
+        fetchWithAuth(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

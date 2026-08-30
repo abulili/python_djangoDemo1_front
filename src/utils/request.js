@@ -8,6 +8,35 @@ const request = axios.create({
     timeout: 60000,
 });
 
+export const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('refresh_token')
+
+    if (!refreshToken) {
+        throw new Error('没有 refresh token')
+    }
+
+    try {
+        const res = await axios.post(`${API_URL}/token/refresh/`,
+            {
+                refresh: refreshToken
+            }
+        );
+        if (!res.data?.access) {
+            throw new Error('没有 refresh token')
+        }
+        console.log('request', res.data)
+        const newAccessToken = res.data.access;
+        console.log('newAccessToken', res.data);
+        localStorage.setItem('access_token', newAccessToken);
+        return newAccessToken;
+    } catch (error) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/';
+        return Promise.reject(error);
+    }
+}
+
 // 请求拦截器：自动带上 token
 request.interceptors.request.use(
     (config) => {
@@ -53,7 +82,7 @@ request.interceptors.response.use(
 
                 // 用token重试原请求
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                return axios(originalRequest);
+                return request(originalRequest);
             } catch (error) {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
