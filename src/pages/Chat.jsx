@@ -33,7 +33,6 @@ const Chat = () => {
     // 会话历史
     const [conversations, setConversations] = useState([])
     const [conversationLoading, setConversationLoading] = useState(false)
-    const [loadingConversations, setLoadingConversations] = useState(false)
 
 
     const navigate = useNavigate();
@@ -73,19 +72,7 @@ const Chat = () => {
 
     }
 
-    // 加载会话列表
-    const loadConversations = async () => {
-        setLoadingConversations(true)
-
-        try {
-            const res = await request.get('/logs/conversations/')
-            setConversations(res.data?.data || [])
-        } catch (error) {
-            message.error('加载会话列表失败')
-        } finally {
-            setLoadingConversations(false)
-        }
-    }
+    
 
     // 打字机效果
     const startTyping = () => {
@@ -149,7 +136,6 @@ const Chat = () => {
 
     useEffect(() => {
         fetchConversations()
-        loadConversations()
     }, [])
 
     const openConversation = async (id) => {
@@ -530,8 +516,8 @@ const Chat = () => {
                             ))}
                         </Space> */}
                     </Card>
-                    <List size="small" loading={loadingConversations} dataSource={conversations} renderItem={(item) => (
-                        <List.Item key={item.conversationId} onClick={() => openConversation(item.conversation_id)}>
+                    <List size="small" loading={conversationLoading} dataSource={conversations} renderItem={(item) => (
+                        <List.Item key={item.conversation_id} onClick={() => openConversation(item.conversation_id)}>
                             {item.title || item.conversation_id}
                         </List.Item>
                     )}>
