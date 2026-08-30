@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Layout, Input, Button, Card, Space, message, Spin, Typography,Select } from 'antd';
-import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined   } from '@ant-design/icons';
+import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List } from 'antd';
+import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
 import request from '../utils/request';
 import useChatStore from '../store/useChatStore';
 
-const { Header, Content } = Layout;
+const { Header, Content, Sider } = Layout;
 const { TextArea } = Input;
 
 const Chat = () => {
@@ -33,6 +33,7 @@ const Chat = () => {
     // 会话历史
     const [conversations, setConversations] = useState([])
     const [conversationLoading, setConversationLoading] = useState(false)
+    const [loadingConversations, setLoadingConversations] = useState(false)
 
 
     const navigate = useNavigate();
@@ -43,7 +44,21 @@ const Chat = () => {
     const streamControllerRef = React.useRef(null);
     const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
     const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
-    
+
+    // 加载会话列表
+    const loadConversations = async () => {
+        setLoadingConversations(true)
+
+        try {
+            const res = await request.get('/logs/conversations/')
+            setConversations(res.data?.data || [])
+        } catch (error) {
+            message.error('加载会话列表失败')
+        } finally {
+            setLoadingConversations(false)
+        }
+    }
+
     // 打字机效果
     const startTyping = () => {
         if (typingTimerRef.current) return;
@@ -65,7 +80,7 @@ const Chat = () => {
         pendingTextRef.current += text;
         startTyping();
     }
-    
+
     useEffect(() => {
         return () => {
             if (getTaskTimerRef.current) {
@@ -94,7 +109,7 @@ const Chat = () => {
             const res = await request.get('/logs/conversations');
             setConversations(res.data?.data || []);
         } catch (error) {
-            if(error.response?.status === 401) {
+            if (error.response?.status === 401) {
                 navigate('/');
                 return;
             }
@@ -106,6 +121,7 @@ const Chat = () => {
 
     useEffect(() => {
         fetchConversations()
+        loadConversations()
     }, [])
 
     const openConversation = async (id) => {
@@ -145,7 +161,7 @@ const Chat = () => {
         const fetchTemplates = async () => {
             try {
                 const res = await request.get('/prompt-templates/', {
-                    params: {is_active: true}
+                    params: { is_active: true }
                 })
                 const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
                 setTemplates(list);
@@ -169,7 +185,7 @@ const Chat = () => {
     const handleTemplateVarChange = (name, value) => {
         setTemplatesVars((prev) => ({
             ...prev,
-           [name]: value // [name] 是动态 key
+            [name]: value // [name] 是动态 key
         }))
     }
 
@@ -292,7 +308,7 @@ const Chat = () => {
                                 }
                                 const { json, rest } = extracted;
                                 try {
-                                    
+
                                     const data = JSON.parse(json);
 
                                     if (data.conversation_id) {
@@ -385,7 +401,7 @@ const Chat = () => {
     const singleChat = async () => {
         try {
             const payload = {
-                 prompt, conversation_id: conversationId, model
+                prompt, conversation_id: conversationId, model
             }
             if (selectedTemplate) {
                 payload.template_name = selectedTemplate.name;
@@ -403,7 +419,7 @@ const Chat = () => {
                 else
                     setResponse('请求失败: ' + res.data.message);
             }
-                
+
             if (res.data?.data?.conversation_id) {
                 setConversationId(res.data?.data?.conversation_id);
                 fetchConversations()
@@ -447,6 +463,13 @@ const Chat = () => {
         else singleChat();
     }
 
+    // style
+    const siderStyle = {
+        textAlign: 'center',
+        lineHeight: '120px',
+        color: '#fff',
+        backgroundColor: '#1677ff',
+    };
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -461,66 +484,78 @@ const Chat = () => {
                     </Space>
                 </div>
             </Header>
-            <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
-
-                <Card size='small' title='会话历史'>
-                    <Space direction='vertical' style={{ width: '100%' }}>
-                        <Space>
-                            <Button onClick={fetchConversations} loading={conversationLoading}>刷新会话</Button>
-                            <Button onClick={createNewConversation} type='primary'>新建会话</Button>
+            <Layout>
+                <Sider width="25%" style={siderStyle}>
+                    <Card size='small' title='会话历史'>
+                        <Space direction='vertical' style={{ width: '100%' }}>
+                            <Space>
+                                <Button onClick={fetchConversations} loading={conversationLoading}>刷新会话</Button>
+                                <Button onClick={createNewConversation} type='primary'>新建会话</Button>
+                            </Space>
                         </Space>
-                    </Space>
 
-                    <Space wrap>
-                        {conversations.map((item) => (
-                        <Button key={item.conversationId} type={item.conversationId === conversationId ? 'primary' : 'default'} onClick={() => openConversation(item.conversation_id)}> 
-                                {item.conversation_id.slice(0, 8)}（{ item.total}）
-                        </Button>
-                    ))}
-                    </Space>
-                </Card>
-
-                {!streamStream && (
-                    <Card direction="vertical" style={{width: '100%'}}>
-                        <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
-                            value={selectedTemplate?.id}
-                            onChange={handleTemplateChange}
-                            options={templates.map(template => ({
-                                label: template.name,
-                                value: template.id
-                            }))}
-                        ></Select>
-                        {selectedTemplate?.variables?.map(name => (
-                            <Space.Compact key={name} style={{width: '100%', margin: '4px 0'}}>
-                                <Space.Addon>{name}</Space.Addon>
-                                <Input key={name}
-                                value={name === 'user_input' ? prompt : (templetVars[name] ?? '')}
-                                    onChange={(e) => handleTemplateVarChange(name, e.target.value)}
-                                disabled={name === 'user_input'}
-                                />
-                            </Space.Compact>
-                            
-                        ))}
+                        {/* <Space wrap>
+                            {conversations.map((item) => (
+                                <Button key={item.conversationId} type={item.conversationId === conversationId ? 'primary' : 'default'} onClick={() => openConversation(item.conversation_id)}>
+                                    {item.conversation_id.slice(0, 8)}（{item.total}）
+                                </Button>
+                            ))}
+                        </Space> */}
                     </Card>
-                )}
-                <Card style={{ flex: 1, minHeight: 200, background: '#f5f5f5' }}>
-                    <Spin spinning={loading} description="AI 正在思考...">
-                        <div style={{ whiteSpace: 'pre-wrap', minHeight: 100 }}>
-                            {response || <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>}
-                        </div>
-                    </Spin>
-                </Card>
-                <form onSubmit={handleSubmit}>
-                    <Space.Compact style={{ width: '100%' }}>
-                        <TextArea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="请输入消息..." rows={3} disabled={loading} style={{ flex: '1' }}></TextArea>
-                        <Button type="primary" htmlType="submit" loading={loading} icon={<SendOutlined />} disabled={loading} style={{ height: 'auto' }}>
-                            {loading ? '正在思考...' : '发送'}
-                        </Button>
-                        {streamStream && loading && <Button danger onClick={stopStream}>停止生成</Button>}
-                    </Space.Compact>
-                </form>
-            </Content>
+                    <List size="small" loading={loadingConversations} dataSource={conversations} renderItem={(item) => (
+                        <List.Item key={item.conversationId} onClick={() => openConversation(item.conversation_id)}>
+                            {item.title || item.conversation_id}
+                        </List.Item>
+                    )}>
+                    </List>
+                </Sider>
+                <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
+
+                    
+
+                    {!streamStream && (
+                        <Card direction="vertical" style={{ width: '100%' }}>
+                            <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
+                                value={selectedTemplate?.id}
+                                onChange={handleTemplateChange}
+                                options={templates.map(template => ({
+                                    label: template.name,
+                                    value: template.id
+                                }))}
+                            ></Select>
+                            {selectedTemplate?.variables?.map(name => (
+                                <Space.Compact key={name} style={{ width: '100%', margin: '4px 0' }}>
+                                    <Space.Addon>{name}</Space.Addon>
+                                    <Input key={name}
+                                        value={name === 'user_input' ? prompt : (templetVars[name] ?? '')}
+                                        onChange={(e) => handleTemplateVarChange(name, e.target.value)}
+                                        disabled={name === 'user_input'}
+                                    />
+                                </Space.Compact>
+
+                            ))}
+                        </Card>
+                    )}
+                    <Card style={{ flex: 1, minHeight: 200, background: '#f5f5f5' }}>
+                        <Spin spinning={loading} description="AI 正在思考...">
+                            <div style={{ whiteSpace: 'pre-wrap', minHeight: 100 }}>
+                                {response || <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>}
+                            </div>
+                        </Spin>
+                    </Card>
+                    <form onSubmit={handleSubmit}>
+                        <Space.Compact style={{ width: '100%' }}>
+                            <TextArea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="请输入消息..." rows={3} disabled={loading} style={{ flex: '1' }}></TextArea>
+                            <Button type="primary" htmlType="submit" loading={loading} icon={<SendOutlined />} disabled={loading} style={{ height: 'auto' }}>
+                                {loading ? '正在思考...' : '发送'}
+                            </Button>
+                            {streamStream && loading && <Button danger onClick={stopStream}>停止生成</Button>}
+                        </Space.Compact>
+                    </form>
+                </Content>
+            </Layout>
+
         </Layout>
     )
 }
