@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Space, Tag, Layout, Typography, message, Spin, Card, Row, Col, Statistic, Input, Select, } from 'antd'
-import { ReloadOutlined, PlusOutlined, BarChartOutlined, ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, FileTextOutlined } from '@ant-design/icons';
+import { BookOutlined, ReloadOutlined, PlusOutlined, BarChartOutlined, ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, FileTextOutlined } from '@ant-design/icons';
 import request from '../utils/request';
 
 const { Header, Content } = Layout;
@@ -226,6 +226,12 @@ const LogList = () => {
                             onClick={() => navigate('/prompt-templates')}
                         >
                             Prompt 模板
+                        </Button>
+                        <Button
+                            icon={<BookOutlined />}
+                            onClick={() => navigate('/knowledge-documents')}
+                        >
+                            知识库
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchLogs}>刷新</Button>
                     </Space>
