@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List } from 'antd';
+import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List,Switch,Tag } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
 import request,{ refreshAccessToken } from '../utils/request';
 import useChatStore from '../store/useChatStore';
@@ -15,6 +15,10 @@ const Chat = () => {
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState('');
     // const [model, setModel] = useState('deepseek');
+
+    const [ragEnabled, setRagEnabled] = useState(false); // 是否开启知识库问答
+    const [references, setReferences] = useState([]); // RAG 返回的引用片段
+
     const {
         conversationId,
         model,
@@ -43,6 +47,26 @@ const Chat = () => {
     const streamControllerRef = React.useRef(null);
     const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
     const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
+
+    // 
+    const ragChat = async () => {
+        try {
+            const res = await request.post('/knowledge-documents/ask/', {
+                query: prompt,
+                top_k: 3,
+                model,
+            })
+            const data = res.data?.data || {};
+            setResponse(data?.answer || '');
+            setReferences(data.references || [])
+            setPrompt('');
+        } catch (error) {
+            message.error('知识库问答失败');
+            setResponse('知识库问答失败')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     //
     const fetchWithAuth = async (url, options = {}) => {
@@ -168,6 +192,7 @@ const Chat = () => {
         resetConversation();
         setResponse('');
         setPrompt('');
+        setReferences([]);
     }
 
     // ====== 模板
@@ -453,6 +478,8 @@ const Chat = () => {
 
         pendingTextRef.current = '';
 
+        setReferences([]);
+
         if (typingTimerRef.current) {
             clearInterval(typingTimerRef.current);
             typingTimerRef.current = null;
@@ -472,7 +499,10 @@ const Chat = () => {
         //         navigate('/');
         //     }
         // }
-        if (streamStream)
+        if (ragEnabled) {
+            ragChat();
+        }
+        else if (streamStream)
             sseStream();
         else singleChat();
     }
@@ -493,7 +523,9 @@ const Chat = () => {
                     <Space>
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
                         {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
-                        <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>
+                        {!ragEnabled &&  <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>}
+                        <Typography.Text>知识库问答</Typography.Text>
+                        <Switch checked={ragEnabled} onChange={setRagEnabled} />
                         <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>
                     </Space>
                 </div>
@@ -528,7 +560,7 @@ const Chat = () => {
 
                     
 
-                    {!streamStream && (
+                    {!streamStream && !ragEnabled && (
                         <Card direction="vertical" style={{ width: '100%' }}>
                             <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
                                 value={selectedTemplate?.id}
@@ -558,6 +590,22 @@ const Chat = () => {
                             </div>
                         </Spin>
                     </Card>
+                    {references.length > 0 && (
+                        <Card size='small' title="引用片段">
+                            <Space direction='vertical' style={{ width: '100%' }}>
+                                {references.map((item) => (
+                                    <Card key={item.id} size="small">
+                                        <Space style={{marginBottom: 8}}>
+                                            <Tag color="blue">{item.document_title}</Tag>
+                                            <Tag>chunk {item.chunk_index}</Tag>
+                                            <Tag color="green">score {item.score}</Tag>
+                                        </Space>
+                                        <Typography.Paragraph  style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{item.content}</Typography.Paragraph>
+                                    </Card>
+                                ))}
+                            </Space>
+                        </Card>
+                    )}
                     <form onSubmit={handleSubmit}>
                         <Space.Compact style={{ width: '100%' }}>
                             <TextArea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="请输入消息..." rows={3} disabled={loading} style={{ flex: '1' }}></TextArea>

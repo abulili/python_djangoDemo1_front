@@ -34,7 +34,12 @@ const KnowledgeDocuments = () => {
     const [loading, setLoading] = useState(false);
 
     const [open, setOpen] = useState(false);
-    const [form] = Form.useForm();
+    const [form] = Form.useForm(); // Form.useForm()返回的就是一个数组 从数组里取出第一个元素，命名为 form
+    /**
+     * 等价于
+        const formList = Form.useForm();
+        const form = formList[0];
+     */
 
     const [chunkDrawerOpen, setChunkDrawerOpen] = useState(false)
     const [currentDocument, setCurrentDocument] = useState(null)
@@ -43,7 +48,7 @@ const KnowledgeDocuments = () => {
         try {
             setLoading(true);
             const res = await request.get('/knowledge-documents/');
-            const list = Array.isArray(res.data) ? res.data : res.data?.results || []
+            const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
             setDocuments(list);
         } catch (error) {
             message.error('知识库文档加载失败');
