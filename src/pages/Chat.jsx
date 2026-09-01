@@ -56,11 +56,17 @@ const Chat = () => {
                 query: prompt,
                 top_k: 3,
                 model,
+                conversation_id: conversationId,
             })
             const data = res.data?.data || {};
             setResponse(data?.answer || '');
             setReferences(data.references || [])
             setPrompt('');
+
+            if(data?.conversation_id) {
+                setConversationId(data.conversation_id);
+            }
+            fetchConversations();
         } catch (error) {
             message.error('知识库问答失败');
             setResponse('知识库问答失败')
