@@ -140,6 +140,7 @@ const Chat = () => {
             setLoading(true);
             setResponse('');
             setConversationId(id);
+            setReferences([]);
 
             const res = await request.get(`/logs/conversation/${id}/`);
             const history = res.data?.data?.history || [];
@@ -448,6 +449,7 @@ const Chat = () => {
 
         setLoading(true);
         setResponse('');
+        setReferences([]);
 
         pendingTextRef.current = '';
 
