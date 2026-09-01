@@ -1,13 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import KnowledgeDocuments from "./pages/KnowledgeDocuments";
-import request from "./utils/request";
 import userEvent from "@testing-library/user-event";
-import { message } from "antd";
+
 
 
 // npm test -- --run
+
+vi.mock("antd", async () => {
+  const actual = await vi.importActual("antd");
+
+  return {
+    ...actual,
+    message: {
+      success: vi.fn(),
+      error: vi.fn(),
+    },
+  };
+});
+
+import { message } from "antd";
+import KnowledgeDocuments from "./pages/KnowledgeDocuments";
+import request from "./utils/request";
 
 // 不是真的请求后端，只是mock
 // Vitest 提供的测试工具对象 也是替换模块成假的
@@ -178,6 +192,19 @@ describe("knowledgeDocuments", () => {
         });
 
         expect(request.get).toHaveBeenCalledTimes(2);
+    })
+
+    it("知识库文档加载失败时提示错误", async () => {
+        request.get.mockRejectedValue(new Error("network error"));
+
+        render(
+            <MemoryRouter>
+                <KnowledgeDocuments />
+            </MemoryRouter>
+        );
+        await waitFor(() => {
+            expect(message.error).toHaveBeenCalledWith("知识库文档加载失败");
+        })
     })
 
 });
