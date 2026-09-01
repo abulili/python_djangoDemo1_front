@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List,Switch,Tag } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
-import request,{ refreshAccessToken } from '../utils/request';
+import request from '../utils/request';
 import useChatStore from '../store/useChatStore';
+import {fetchWithAuth} from '../utils/fetchWithAuth';
 
 const { Header, Content, Sider } = Layout;
 const { TextArea } = Input;
@@ -66,34 +67,6 @@ const Chat = () => {
         } finally {
             setLoading(false)
         }
-    }
-
-    //
-    const fetchWithAuth = async (url, options = {}) => {
-        console.log('过来吗',options)
-        const accessToken = localStorage.getItem("access_token")
-
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                ...(options.headers || {})
-            }
-        })
-
-        if (response.status !== 401) {
-            return response
-        }
-
-        const newAccessToken = await refreshAccessToken()
-
-        return fetch(url, {
-            ...options,
-            headers: {
-                ...(options.headers || {}),
-                Authorization: `Bearer ${newAccessToken}`
-            }   
-        })
-
     }
 
     
