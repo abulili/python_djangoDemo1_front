@@ -62,10 +62,11 @@ const KnowledgeDocuments = () => {
     }, []);
 
     const openCreate = async () => {
-        form.setFieldValue({
-            title: '',
-            content: '',
-        });
+        // form.setFieldsValue({
+        //     title: '',
+        //     content: '',
+        // });
+        form.resetFields();
         setOpen(true);
     }
 
