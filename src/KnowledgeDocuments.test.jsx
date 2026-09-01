@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import KnowledgeDocuments from "./pages/KnowledgeDocuments";
 import request from "./utils/request";
+import userEvent from "@testing-library/user-event";
+import { message } from "antd";
 
-// npm test
+
+// npm test -- --run
 
 // 不是真的请求后端，只是mock
 // Vitest 提供的测试工具对象 也是替换模块成假的
@@ -80,4 +83,54 @@ describe("knowledgeDocuments", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
+    
+    it("新增知识库文档", async () => {
+        // const user = userEvent.setup();
+
+        // 假装列表一开始是空的
+        request.get.mockResolvedValue({
+            data: {
+                results: [],
+            },
+        });
+
+        request.post.mockResolvedValue({
+            data: {
+                code: 200,
+                message: "success"
+            }
+        })
+
+        render(
+            <MemoryRouter>
+                <KnowledgeDocuments />
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledWith("/knowledge-documents/");
+        })
+
+        // 模拟点击按钮  /xxx/正则表达：找页面上的包含“新增文档”按钮
+         userEvent.click(screen.getByRole("button", { name: /新增文档/ }));
+
+        // 模拟打字
+         userEvent.type(screen.getByLabelText(/文档标题/), "AI日志项目说明");
+         userEvent.type(
+            screen.getByLabelText(/文档内容/),
+            "stream3 使用 conversation_id 实现上下文会话"
+        );
+
+         userEvent.click(screen.getByRole("button", { name: /保\s*存/ }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith("/knowledge-documents/", {
+                title: "AI日志项目说明",
+                content: "stream3 使用 conversation_id 实现上下文会话",
+            });
+        });
+
+        expect(request.get).toHaveBeenCalledTimes(2);
+    });
+    
 });
