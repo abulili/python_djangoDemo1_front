@@ -6,6 +6,7 @@ import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, Swap
 import request from '../utils/request';
 import useChatStore from '../store/useChatStore';
 import {fetchWithAuth} from '../utils/fetchWithAuth';
+import { getLatestTraceId } from "../utils/trace";
 
 const { Header, Content, Sider } = Layout;
 const { TextArea } = Input;
@@ -68,8 +69,9 @@ const Chat = () => {
             }
             fetchConversations();
         } catch (error) {
-            message.error('知识库问答失败');
-            setResponse('知识库问答失败')
+            const traceId = getLatestTraceId();
+            message.error(traceId ? `知识库问答失败，trace_id：${traceId}` : "知识库问答失败");
+            setResponse(traceId ? `知识库问答失败\ntrace_id：${traceId}` : "知识库问答失败");
         } finally {
             setLoading(false)
         }
@@ -345,8 +347,11 @@ const Chat = () => {
                                         fetchConversations();//刷新会话列表
                                     }
                                     if (data.error) {
-                                        setResponse('错误: ' + data.error);
-                                        setLoading(false);
+                                        if (data.error) {
+                                            const traceId = getLatestTraceId();
+                                            setResponse(traceId ? `错误: ${data.error}\ntrace_id：${traceId}` : `错误: ${data.error}`);
+                                            setLoading(false);
+                                        }
                                     }
                                 } catch (error) {
                                     console.error('解析数据失败. 原始 JSON 片段:',
@@ -444,6 +449,14 @@ const Chat = () => {
                 fetchConversations()
             }
         } catch (error) {
+            const traceId = getLatestTraceId();
+            setResponse(
+                traceId
+                    ? `请求失败\ntrace_id：${traceId}`
+                    : '请求失败'
+            );
+            message.error(traceId ? `请求失败，trace_id：${traceId}` : '请求失败');
+            setLoading(false);
         }
     }
 

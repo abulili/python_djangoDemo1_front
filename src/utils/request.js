@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { setLatestTraceId } from "./trace";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -53,7 +54,19 @@ request.interceptors.request.use(
 
 // 响应拦截器：处理 401 自动刷新
 request.interceptors.response.use(
-    (response) => response, async (error) => {
+    (response) => {
+        const traceId = response.headers?.["x-trace-id"];
+        if (traceId) {
+            setLatestTraceId(traceId);
+        }
+
+        return response;
+    }, async (error) => {
+        const traceId = error.response?.headers?.["x-trace-id"];
+        if (traceId) {
+            setLatestTraceId(traceId);
+        }
+
         const originalRequest = error.config;
 
         // 如果返回 401 且不是刷新 token 的请求本身

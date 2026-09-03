@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchWithAuth } from "./fetchWithAuth";
 import { refreshAccessToken } from "./request";
+import { getLatestTraceId } from "./trace";
 
 // npm test -- src/utils/fetchWithAuth.test.js --run
 vi.mock("./request", () => ({
@@ -19,6 +20,13 @@ describe("fetchWithAuth", () => {
 
         const mockResponse = {
             status: 200,
+            headers: {
+                get: vi.fn((name) => {
+                    if (name === 'X-Trace-Id') {
+                        return 'trace-001';
+                    }
+                })
+            },
             json: vi.fn()
         };
 
@@ -52,6 +60,7 @@ describe("fetchWithAuth", () => {
         -> 不调用 refreshAccessToken
          */
         expect(refreshAccessToken).not.toBeCalled();
+        expect(getLatestTraceId()).toBe("trace-001");
 
     })
 
@@ -60,10 +69,22 @@ describe("fetchWithAuth", () => {
 
         const firstResponse = {
             status: 401,
+            headers: {
+                get: vi.fn((name) => {
+                    if (name === "X-Trace-Id") return "trace-old";
+                    return null;
+                }),
+            },
         };
 
         const secondResponse = {
             status: 200,
+            headers: {
+                get: vi.fn((name) => {
+                    if (name === "X-Trace-Id") return "trace-new";
+                    return null;
+                }),
+            },
         };
 
         // 第一次调用返回firstR，第二次调用返回secondR
@@ -82,6 +103,7 @@ describe("fetchWithAuth", () => {
 
 
         expect(response).toBe(secondResponse);
+        expect(getLatestTraceId()).toBe("trace-new");
         expect(refreshAccessToken).toHaveBeenCalledTimes(1);
         expect(global.fetch).toHaveBeenCalledTimes(2);
 
