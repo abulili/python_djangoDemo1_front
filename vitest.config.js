@@ -10,9 +10,19 @@ export default defineConfig({
         server: {
             deps: {
                 inline: [
-                    '@ant-design/colors',
-                    '@ant-design/icons',
-                    'antd',
+                    "antd",
+                    "@ant-design/icons",
+                    "@ant-design/colors",
+                    "@rc-component/util",
+                    "rc-util",
+                    "rc-table",
+                    "rc-pagination",
+                    "rc-picker",
+                    "rc-select",
+                    "rc-tree",
+                    "rc-tooltip",
+                    "rc-dialog",
+                    "rc-drawer",
                 ],
             },
         },
