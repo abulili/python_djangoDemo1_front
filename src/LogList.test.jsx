@@ -111,6 +111,9 @@ const createTraceDetailResponse = (traceId, overrides = {}) => ({
                 failed_step_count: 0,
                 has_failed_step: false,
                 total_duration: 1.2,
+                stream_step_count: 2,
+                rag_step_count: 0,
+                task_step_count: 0,
             },
             ...overrides,
         },
@@ -183,6 +186,10 @@ describe("LogList trace drawer", () => {
         expect(await screen.findByText("stream_start")).toBeInTheDocument();
         expect(screen.getByText("stream_done")).toBeInTheDocument();
         expect(screen.getByText("正常")).toBeInTheDocument();
+
+        expect(screen.getByText(/流式\s*2/)).toBeInTheDocument();
+        expect(screen.getByText(/RAG\s*0/)).toBeInTheDocument();
+        expect(screen.getByText(/异步任务\s*0/)).toBeInTheDocument();
     });
 
     it("trace 详情存在失败步骤时显示异常状态", async () => {
@@ -230,6 +237,9 @@ describe("LogList trace drawer", () => {
                     failed_step_count: 1,
                     has_failed_step: true,
                     total_duration: 1.2,
+                    stream_step_count: 2,
+                    rag_step_count: 0,
+                    task_step_count: 0,
                 },
             },
         });
@@ -246,6 +256,10 @@ describe("LogList trace drawer", () => {
         expect(await screen.findByText("stream_failed")).toBeInTheDocument();
         expect(screen.getByText("异常")).toBeInTheDocument();
         expect(screen.getAllByText("模型调用失败").length).toBeGreaterThan(0);
+
+        expect(screen.getByText(/流式\s*2/)).toBeInTheDocument();
+        expect(screen.getByText(/RAG\s*0/)).toBeInTheDocument();
+        expect(screen.getByText(/异步任务\s*0/)).toBeInTheDocument();
     });
 
     it("加载 trace 详情失败时提示错误", async () => {
