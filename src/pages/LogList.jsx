@@ -251,6 +251,9 @@ const LogList = () => {
         { title: '时间', dataIndex: 'call_time', width: 180 },
     ]
 
+    const traceSteps = traceDetail?.steps || traceDetail?.rag_steps || [];
+    const failedSteps = traceSteps.filter((item) => !item.success);
+
     return (
         <Layout style={{ minHeight: '100vh' }}>
             <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
@@ -364,6 +367,13 @@ const LogList = () => {
                                     <Descriptions.Item label="总耗时">
                                         {traceDetail.summary?.total_duration}s
                                     </Descriptions.Item>
+                                    <Descriptions.Item label="链路状态">
+                                        {failedSteps.length > 0 ? (
+                                            <Tag color="red">异常</Tag>
+                                        ) : (
+                                            <Tag color="green">正常</Tag>
+                                        )}
+                                    </Descriptions.Item>
                                 </Descriptions>
 
                                 <Card size="small" title="AI 调用日志">
@@ -385,8 +395,9 @@ const LogList = () => {
                                     <Table
                                         size="small"
                                         rowKey="id"
+                                        rowClassName={(record) => record.success ? '' : 'trace-step-failed-row'}
                                         pagination={false}
-                                        dataSource={traceDetail.steps || traceDetail.rag_steps || []}
+                                        dataSource={traceSteps}
                                         columns={[
                                             { title: '步骤', dataIndex: 'step', width: 150 },
                                             { title: '状态', dataIndex: 'success', width: 90, render: (val) => <Tag color={val ? 'green' : 'red'}>{val ? '成功' : '失败'}</Tag> },
