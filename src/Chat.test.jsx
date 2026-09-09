@@ -379,20 +379,153 @@ describe("Chat轮询", () => {
         });
 
         await waitFor(() => {
-  expect(screen.getByText("任务不存在、已过期，或当前账号无权限查看")).toBeInTheDocument();
-});
+            expect(screen.getByText("任务不存在、已过期，或当前账号无权限查看")).toBeInTheDocument();
+        });
 
-const taskCallsAfter404 = request.get.mock.calls.filter(([url]) =>
-  String(url).includes("/logs/task/task-not-found/")
-).length;
+        const taskCallsAfter404 = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-not-found/")
+        ).length;
 
-await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
-const taskCallsLater = request.get.mock.calls.filter(([url]) =>
-  String(url).includes("/logs/task/task-not-found/")
-).length;
+        const taskCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-not-found/")
+        ).length;
 
-expect(taskCallsLater).toBe(taskCallsAfter404);
+        expect(taskCallsLater).toBe(taskCallsAfter404);
+    });
+
+    it("任务查询返回403后停止轮询", async () => {
+        request.post.mockResolvedValue({
+            data: {
+                data: {
+                    task_id: "task-forbidden",
+                    status: "processing",
+                },
+            },
+        });
+
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            if (String(url).includes("/logs/task/task-forbidden/")) {
+                return Promise.reject({
+                    response: {
+                        status: 403,
+                        data: {
+                            message: "无权限查看任务结果",
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat maxTaskPollCount={5} taskPollIntervalMs={10} />
+            </MemoryRouter>
+        );
+
+        fireEvent.change(screen.getByRole("textbox"), {
+            target: { value: "测试任务403" },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /发送/ }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("当前账号无权限查看该任务结果")).toBeInTheDocument();
+        });
+
+        const taskCallsAfter403 = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-forbidden/")
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const taskCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-forbidden/")
+        ).length;
+
+        expect(taskCallsLater).toBe(taskCallsAfter403);
+    });
+
+    it("任务查询返回429后停止轮询", async () => {
+        request.post.mockResolvedValue({
+            data: {
+                data: {
+                    task_id: "task-throttled",
+                    status: "processing",
+                },
+            },
+        });
+
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            if (String(url).includes("/logs/task/task-throttled/")) {
+                return Promise.reject({
+                    response: {
+                        status: 429,
+                        data: {
+                            message: "请求过于频繁",
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat maxTaskPollCount={5} taskPollIntervalMs={10} />
+            </MemoryRouter>
+        );
+
+        fireEvent.change(screen.getByRole("textbox"), {
+            target: { value: "测试任务429" },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /发送/ }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("任务查询太频繁，请稍后再试")).toBeInTheDocument();
+        });
+        
+        // 后面都是判断请求有没有停止
+        const taskCallsAfter429 = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-throttled/")
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const taskCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/task/task-throttled/")
+        ).length;
+
+        expect(taskCallsLater).toBe(taskCallsAfter429);
     });
 
 })
