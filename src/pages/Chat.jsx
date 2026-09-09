@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List,Switch,Tag } from 'antd';
@@ -53,11 +53,16 @@ const Chat = () => {
     // 
     const ragChat = async () => {
         try {
+            if (!pendingRequestIdRef.current) {
+                pendingRequestIdRef.current = createRequestId();
+            }
+            const requestId = pendingRequestIdRef.current;
             const res = await request.post('/knowledge-documents/ask/', {
                 query: prompt,
                 top_k: 3,
                 model,
                 conversation_id: conversationId,
+                request_id: requestId,
             })
             const data = res.data?.data || {};
             setResponse(data?.answer || '');
@@ -74,6 +79,7 @@ const Chat = () => {
             setResponse(traceId ? `知识库问答失败\ntrace_id：${traceId}` : "知识库问答失败");
         } finally {
             setLoading(false)
+            pendingRequestIdRef.current = null;
         }
     }
 
@@ -215,6 +221,12 @@ const Chat = () => {
             streamControllerRef.current.abort()
         }
 
+        // sse重复请求不太适合直接复用旧响应
+        // if (!pendingRequestIdRef.current) {
+        //         pendingRequestIdRef.current = createRequestId();
+        //     }
+        // const requestId = pendingRequestIdRef.current;
+
         const controller = new AbortController();
         streamControllerRef.current = controller;
 
@@ -226,7 +238,7 @@ const Chat = () => {
                 'Authorization': `Bearer ${getToken()}`
             },
             body: JSON.stringify({
-                prompt, model, conversation_id: conversationId
+                prompt, model, conversation_id: conversationId,
             }),
             signal: controller.signal,
         }).then(response => {
@@ -375,8 +387,6 @@ const Chat = () => {
                 });
             }
             readStream()
-
-
         })
     }
     const getTaskId = async (taskId) => {
@@ -422,10 +432,24 @@ const Chat = () => {
         setLoading(false)
     }
 
+    const createRequestId = () => {
+        if (crypto?.randomUUID) {
+            return crypto.randomUUID();
+        }
+
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    };
+    const pendingRequestIdRef = useRef(null);
     const singleChat = async () => {
         try {
+            
+            if (!pendingRequestIdRef.current) {
+                pendingRequestIdRef.current = createRequestId();
+            }
+            const requestId = pendingRequestIdRef.current;
+
             const payload = {
-                prompt, conversation_id: conversationId, model
+                prompt, conversation_id: conversationId, model, request_id: requestId,
             }
             if (selectedTemplate) {
                 payload.template_name = selectedTemplate.name;
@@ -434,6 +458,7 @@ const Chat = () => {
                     user_input: prompt
                 };
             }
+            setLoading(true);
             const res = await request.post(`/logs/call_company_ai4/`, payload);
             console.log('singleChat', res)
             if (res.data?.data?.task_id) {
@@ -448,6 +473,7 @@ const Chat = () => {
                 setConversationId(res.data?.data?.conversation_id);
                 fetchConversations()
             }
+            pendingRequestIdRef.current = null;
         } catch (error) {
             const traceId = getLatestTraceId();
             setResponse(
@@ -457,6 +483,7 @@ const Chat = () => {
             );
             message.error(traceId ? `请求失败，trace_id：${traceId}` : '请求失败');
             setLoading(false);
+            pendingRequestIdRef.current = null;
         }
     }
 
@@ -465,6 +492,8 @@ const Chat = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!prompt.trim()) return;
+        
+        if (loading) return;
 
         setLoading(true);
         setResponse('');
