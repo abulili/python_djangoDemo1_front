@@ -11,7 +11,9 @@ import { getLatestTraceId } from "../utils/trace";
 const { Header, Content, Sider } = Layout;
 const { TextArea } = Input;
 
-const Chat = () => {
+
+export const MAX_TASK_POLL_COUNT = 60;
+const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 2000, }) => {
     const [prompt, setPrompt] = useState('');
     // const [conversationId, setConversationId] = useState('');
     const [loading, setLoading] = useState(false);
@@ -389,25 +391,45 @@ const Chat = () => {
             readStream()
         })
     }
+
+    const taskPollCountRef = React.useRef(0);
     const getTaskId = async (taskId) => {
         try {
+            taskPollCountRef.current += 1;
+
+            if (taskPollCountRef.current > maxTaskPollCount) {
+                clearInterval(getTaskTimerRef.current);
+                getTaskTimerRef.current = null;
+                setLoading(false);
+                setResponse('任务处理时间较长，请稍后到日志列表查看结果');
+                message.warning('任务处理时间较长，已停止自动查询');
+                return;
+            }
+
             const res = await request.get(`${import.meta.env.VITE_API_URL}/logs/task/${taskId}/`);
             console.log('getTaskId', res)
             if (res.data.data?.status === 'success') {
-                setResponse(res.data.data.message?.response || '');
+                setResponse(res.data.data.result?.response || res.data.data.message?.response || '');
                 clearInterval(getTaskTimerRef.current);
                 getTaskTimerRef.current = null;
+                taskPollCountRef.current = 0;
                 setPrompt('');
                 setLoading(false);
                 fetchConversations();
             }
             else if (res.data.data?.status === 'processing' || res.data.data?.status === 'pending');
             else {
-                setResponse('请求失败: ' + res.data.data.message);
+                setResponse('请求失败: ' + (res.data.data?.error || res.data.data?.message || '未知错误'));
                 clearInterval(getTaskTimerRef.current);
                 getTaskTimerRef.current = null;
+                taskPollCountRef.current = 0;
                 setPrompt('');
                 setLoading(false)
+            }
+
+            const nextConversationId = res.data.data.result?.conversation_id || res.data.data.conversation_id;
+            if (nextConversationId) {
+                setConversationId(nextConversationId);
             }
 
 
@@ -440,6 +462,8 @@ const Chat = () => {
         return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     };
     const pendingRequestIdRef = useRef(null);
+    
+    
     const singleChat = async () => {
         try {
             
@@ -462,8 +486,9 @@ const Chat = () => {
             const res = await request.post(`/logs/call_company_ai4/`, payload);
             console.log('singleChat', res)
             if (res.data?.data?.task_id) {
+                taskPollCountRef.current = 0;
                 if (getTaskTimerRef.current === null) {
-                    getTaskTimerRef.current = setInterval(() => getTaskId(res.data?.data?.task_id), 1000);
+                    getTaskTimerRef.current = setInterval(() => getTaskId(res.data?.data?.task_id), taskPollIntervalMs);
                 }
                 else
                     setResponse('请求失败: ' + res.data.message);
