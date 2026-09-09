@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List,Switch,Tag } from 'antd';
+import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List, Switch, Tag } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
 import request from '../utils/request';
 import useChatStore from '../store/useChatStore';
-import {fetchWithAuth} from '../utils/fetchWithAuth';
+import { fetchWithAuth } from '../utils/fetchWithAuth';
 import { getLatestTraceId } from "../utils/trace";
 
 const { Header, Content, Sider } = Layout;
@@ -71,7 +71,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             setReferences(data.references || [])
             setPrompt('');
 
-            if(data?.conversation_id) {
+            if (data?.conversation_id) {
                 setConversationId(data.conversation_id);
             }
             fetchConversations();
@@ -85,7 +85,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         }
     }
 
-    
+
 
     // 打字机效果
     const startTyping = () => {
@@ -434,7 +434,30 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
 
 
         } catch (error) {
-            setResponse('请求失败: ' + error.message);
+            const status = error.response?.status;
+
+            if ([403, 404, 429].includes(status)) {
+                if (getTaskTimerRef.current) {
+                    clearInterval(getTaskTimerRef.current);
+                    getTaskTimerRef.current = null;
+                    taskPollCountRef.current = 0;
+                }
+
+                setLoading(false);
+
+                if (status === 404) {
+                    setResponse("任务不存在、已过期，或当前账号无权限查看");
+                    message.error("任务不存在或已过期");
+                } else if (status === 403) {
+                    setResponse("当前账号无权限查看该任务结果");
+                    message.error("无权限查看任务结果");
+                } else if (status === 429) {
+                    setResponse("任务查询太频繁，请稍后再试");
+                    message.warning("查询太频繁，请稍后再试");
+                }
+
+                return;
+            }
         }
     }
     // 手动停止流式输出
@@ -462,11 +485,11 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     };
     const pendingRequestIdRef = useRef(null);
-    
-    
+
+
     const singleChat = async () => {
         try {
-            
+
             if (!pendingRequestIdRef.current) {
                 pendingRequestIdRef.current = createRequestId();
             }
@@ -517,7 +540,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!prompt.trim()) return;
-        
+
         if (loading) return;
 
         setLoading(true);
@@ -571,7 +594,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                     <Space>
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
                         {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
-                        {!ragEnabled &&  <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>}
+                        {!ragEnabled && <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>}
                         <Typography.Text>知识库问答</Typography.Text>
                         <Switch checked={ragEnabled} onChange={setRagEnabled} />
                         <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>
@@ -606,7 +629,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                 <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
 
-                    
+
 
                     {!streamStream && !ragEnabled && (
                         <Card direction="vertical" style={{ width: '100%' }}>
@@ -643,12 +666,12 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                             <Space direction='vertical' style={{ width: '100%' }}>
                                 {references.map((item) => (
                                     <Card key={item.id} size="small">
-                                        <Space style={{marginBottom: 8}}>
+                                        <Space style={{ marginBottom: 8 }}>
                                             <Tag color="blue">{item.document_title}</Tag>
                                             <Tag>chunk {item.chunk_index}</Tag>
                                             <Tag color="green">score {item.score}</Tag>
                                         </Space>
-                                        <Typography.Paragraph  style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{item.content}</Typography.Paragraph>
+                                        <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{item.content}</Typography.Paragraph>
                                     </Card>
                                 ))}
                             </Space>

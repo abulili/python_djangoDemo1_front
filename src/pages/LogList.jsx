@@ -288,6 +288,28 @@ const LogList = () => {
         fetchLogs(emptyFilters, 1, pagination.pageSize);
     };
 
+    const renderStepExtra = (step) => {
+        const detail = step.detail || {};
+
+        if (step.step === "task_retry") {
+            return (
+                <div style={{ color: "#fa8c16", marginTop: 4 }}>
+                    第 {detail.retry_count} 次重试，最多 {detail.max_retries} 次，
+                    {detail.countdown ? `等待 ${detail.countdown} 秒后重试` : "准备重试"}
+                </div>
+            )
+        }
+
+        if (step.step === "task_failed") {
+            return (
+            <div style={{ color: "#ff4d4f", marginTop: 4 }}>
+                失败原因：{detail.reason === "max_retries_exceeded" ? "超过最大重试次数" : "不可重试错误"}
+            </div>
+            );
+        }
+        return null
+    }
+
     const columns = [
         { title: "ID", dataIndex: "id", width: 60 },
         { title: "用户输入", dataIndex: "prompt", ellipsis: true },
@@ -330,6 +352,7 @@ const LogList = () => {
 
     const traceSteps = traceDetail?.steps || traceDetail?.rag_steps || [];
     const failedSteps = traceSteps.filter((item) => !item.success);
+
 
     return (
         <Layout style={{ minHeight: "100vh" }}>
@@ -558,7 +581,17 @@ const LogList = () => {
                                         pagination={false}
                                         dataSource={traceSteps}
                                         columns={[
-                                            { title: "步骤", dataIndex: "step", width: 150 },
+                                            {
+                                                title: "步骤",
+                                                dataIndex: "step",
+                                                width: 150,
+                                                render: (value, record) => (
+                                                    <div>
+                                                    <div>{value}</div>
+                                                    {renderStepExtra(record)}
+                                                    </div>
+                                                ),
+                                            },
                                             {
                                                 title: "状态",
                                                 dataIndex: "success",
@@ -585,6 +618,7 @@ const LogList = () => {
                                                 ),
                                             },
                                             { title: "错误", dataIndex: "error_message" },
+                                            
                                         ]}
                                     />
                                 </Card>

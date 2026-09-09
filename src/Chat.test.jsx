@@ -337,4 +337,62 @@ describe("Chat轮询", () => {
         // 看数目有没有变化
         expect(request.get.mock.calls.length).toBe(callsAfterUnknown);
     }, 15000);
+
+    it("任务查询返回404后停止轮询", async () => {
+        request.post.mockResolvedValue({
+            data: {
+                data: {
+                    task_id: "task-not-found",
+                    status: "processing",
+                },
+            },
+        });
+
+        request.get.mockRejectedValue({
+            response: {
+                status: 404,
+                data: {
+                    message: "任务不存在或已过期",
+                },
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat maxTaskPollCount={5} taskPollIntervalMs={10} />
+            </MemoryRouter>
+        );
+
+        fireEvent.change(screen.getByRole("textbox"), {
+            target: { value: "测试任务404" },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /发送/ }));
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledWith(
+                expect.stringContaining("/logs/task/task-not-found/")
+            );
+        });
+
+        await waitFor(() => {
+  expect(screen.getByText("任务不存在、已过期，或当前账号无权限查看")).toBeInTheDocument();
+});
+
+const taskCallsAfter404 = request.get.mock.calls.filter(([url]) =>
+  String(url).includes("/logs/task/task-not-found/")
+).length;
+
+await new Promise((resolve) => setTimeout(resolve, 50));
+
+const taskCallsLater = request.get.mock.calls.filter(([url]) =>
+  String(url).includes("/logs/task/task-not-found/")
+).length;
+
+expect(taskCallsLater).toBe(taskCallsAfter404);
+    });
+
 })
