@@ -201,7 +201,7 @@ const KnowledgeDocuments = () => {
                 title={currentDocument?.title || '文档切片'}
                 open={chunkDrawerOpen}
                 onClose={() => setChunkDrawerOpen(false)}
-                width={720}
+                size="large"
             >
                 {(currentDocument?.chunks || []).map((chunk) => (
                     <div

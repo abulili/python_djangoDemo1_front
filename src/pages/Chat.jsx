@@ -608,7 +608,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             <Layout>
                 <Sider width="25%" style={siderStyle}>
                     <Card size='small' title='会话历史'>
-                        <Space direction='vertical' style={{ width: '100%' }}>
+                        <Space orientation="vertical"     style={{ width: '100%' }}>
                             <Space>
                                 <Button onClick={fetchConversations} loading={conversationLoading}>刷新会话</Button>
                                 <Button onClick={createNewConversation} type='primary'>新建会话</Button>
@@ -667,7 +667,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                     </Card>
                     {references.length > 0 && (
                         <Card size='small' title="引用片段">
-                            <Space direction='vertical' style={{ width: '100%' }}>
+                            <Space orientation="vertical"     style={{ width: '100%' }}>
                                 {references.map((item) => (
                                     <Card key={item.id} size="small">
                                         <Space style={{ marginBottom: 8 }}>

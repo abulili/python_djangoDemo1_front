@@ -8,15 +8,18 @@ import userEvent from "@testing-library/user-event";
 // npm test -- --run
 
 vi.mock("antd", async () => {
-  const actual = await vi.importActual("antd");
+    const actual = await vi.importActual("antd");
 
-  return {
-    ...actual,
-    message: {
-      success: vi.fn(),
-      error: vi.fn(),
-    },
-  };
+    return {
+        ...actual,
+        Popconfirm: ({ children, onConfirm }) => (
+            <span onClick={onConfirm}>{children}</span>
+        ),
+        message: {
+            success: vi.fn(),
+            error: vi.fn(),
+        },
+    };
 });
 
 import { message } from "antd";
@@ -182,16 +185,15 @@ describe("knowledgeDocuments", () => {
 
         // 因为Popconfirm 可能是延迟渲染的。
         const deleteButton = await screen.findByRole("button", { name: /删\s*除/ });
-        userEvent.click(deleteButton);
-
-        const okButton = await screen.findByRole("button", { name: /OK/ });
-        userEvent.click(okButton);
+        await userEvent.click(deleteButton);
 
         await waitFor(() => {
             expect(request.delete).toHaveBeenCalledWith("/knowledge-documents/1/");
         });
 
-        expect(request.get).toHaveBeenCalledTimes(2);
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledTimes(2);
+        });
     })
 
     it("知识库文档加载失败时提示错误", async () => {
