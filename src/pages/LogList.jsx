@@ -44,6 +44,17 @@ const Stats = () => {
 
     const getToken = () => localStorage.getItem("access_token");
 
+    const [observability, setObservability] = useState(null);
+
+    const fetchObservability = async () => {
+        try {
+            const res = await request.get("/logs/observability-summary/");
+            setObservability(res.data?.data || null);
+        } catch (error) {
+            console.warn("load observability summary failed", error);
+        }
+    };
+
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -51,7 +62,8 @@ const Stats = () => {
                 const response = await request.get(`/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
-                if (error.response.status === 401) {
+                console.log('error',error)
+                if (error.response?.status === 401) {
                     navigate("/");
                 } else message.error("加载统计数据失败");
             } finally {
@@ -59,6 +71,7 @@ const Stats = () => {
             }
         };
         fetchStats();
+        fetchObservability();
     }, [navigate]);
 
     if (loading) {
@@ -146,6 +159,28 @@ const Stats = () => {
                                 prefix="￥"
                                 precision={2}
                             />
+                        </Card>
+                    </Col>
+                </Row>
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic title="重试次数" value={observability?.retry_count || 0} />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic title="超时任务" value={observability?.timeout_count || 0} />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic title="恢复查询" value={observability?.recovered_count || 0} />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic title="失败步骤" value={observability?.failed_step_count || 0} />
                         </Card>
                     </Col>
                 </Row>
@@ -267,9 +302,9 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                 Object.entries(nextFilters).filter(([, value]) => value !== ""),
             );
             params.page = page;
-            
+
             const res = await request.get(`/logs/`, { params });
-            
+
             setLogs(res.data?.results || []);
             setPagination((prev) => ({
                 ...prev,
