@@ -25,9 +25,9 @@ export const refreshAccessToken = async () => {
         if (!res.data?.access) {
             throw new Error('没有 refresh token')
         }
-        console.log('request', res.data)
+
         const newAccessToken = res.data.access;
-        console.log('newAccessToken', res.data);
+
         localStorage.setItem('access_token', newAccessToken);
         return newAccessToken;
     } catch (error) {
@@ -90,7 +90,7 @@ request.interceptors.response.use(
                     }
                 );
                 const newAccessToken = res.data.access;
-                console.log('newAccessToken', res.data);
+
                 localStorage.setItem('access_token', newAccessToken);
 
                 // 用token重试原请求

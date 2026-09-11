@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,6 +18,8 @@ import {
     Select,
     Drawer,
     Descriptions,
+    Segmented,
+    Switch
 } from "antd";
 import {
     BookOutlined,
@@ -61,7 +63,7 @@ const Stats = () => {
 
     if (loading) {
         return (
-            <Spin tip="加载中..." style={{ display: "block", marginTop: 100 }}></Spin>
+            <Spin description="加载中..." style={{ display: "block", marginTop: 100 }}></Spin>
         );
     }
 
@@ -195,7 +197,7 @@ const Stats = () => {
     );
 };
 
-const LogList = () => {
+const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -212,6 +214,9 @@ const LogList = () => {
     const [traceDrawerOpen, setTraceDrawerOpen] = useState(false);
     const [traceLoading, setTraceLoading] = useState(false);
     const [traceDetail, setTraceDetail] = useState(null);
+    const [currentTraceId, setCurrentTraceId] = useState("");
+
+    const traceAutoRefreshCountRef = useRef(0);
 
     const [pagination, setPagination] = useState({
         current: 1,
@@ -220,6 +225,33 @@ const LogList = () => {
     });
 
     const getToken = () => localStorage.getItem("access_token");
+
+
+    const getStepLabel = (step) => {
+        const stepMap = {
+            task_start: "任务开始",
+            call_model_start: "开始调用模型",
+            task_retry: "任务重试",
+            task_failed: "任务失败",
+            task_done: "任务完成",
+            task_timeout: "任务超时",
+            task_recovered: "任务恢复",
+
+            retrieve_chunks: "知识库检索",
+            build_prompt: "构建提示词",
+            call_model: "调用模型",
+            save_result: "保存结果",
+            idempotent_hit: "幂等命中",
+
+            stream_start: "流式开始",
+            load_history: "加载上下文",
+            build_messages: "构建消息",
+            stream_done: "流式完成",
+            stream_failed: "流式失败",
+        };
+
+        return stepMap[step] || step;
+    };
 
     const fetchLogs = async (
         nextFilters = filters,
@@ -235,9 +267,9 @@ const LogList = () => {
                 Object.entries(nextFilters).filter(([, value]) => value !== ""),
             );
             params.page = page;
-            console.log("fetchLogs", params, nextFilters);
+            
             const res = await request.get(`/logs/`, { params });
-            console.log("fetchLogs", res);
+            
             setLogs(res.data?.results || []);
             setPagination((prev) => ({
                 ...prev,
@@ -254,21 +286,71 @@ const LogList = () => {
         }
     };
 
-    const openTraceDetail = async (traceId) => {
+    const openTraceDetail = async (traceId, options = {}) => {
         if (!traceId) return;
 
+        const {
+            resetFilter = true,
+            autoRefreshByStatus = true,
+        } = options;
+
         try {
+            setCurrentTraceId(traceId);
+            if (resetFilter) {
+                setStepFilter("all");
+                traceAutoRefreshCountRef.current = 0;
+            }
             setTraceLoading(true);
             setTraceDrawerOpen(true);
 
             const res = await request.get(`/logs/trace/${traceId}/`);
+            const nextTraceDetail = res.data?.data || null;
             setTraceDetail(res.data?.data || null);
+
+            if (autoRefreshByStatus) {
+                setTraceAutoRefresh(!isTraceFinished(nextTraceDetail));
+            }
         } catch (error) {
             message.error("加载 trace 详情失败");
         } finally {
             setTraceLoading(false);
         }
     };
+
+    const isTraceFinished = (detail) => {
+        const steps = detail?.steps || detail?.rag_steps || [];
+
+        if (steps.some((step) =>
+            ["task_done", "task_failed", "stream_done", "task_timeout", "stream_failed"].includes(step.step)
+        )) {
+            return true;
+        }
+
+        return false;
+    };
+
+    const [traceAutoRefresh, setTraceAutoRefresh] = useState(false);
+
+    useEffect(() => {
+        if (!traceDrawerOpen || !traceAutoRefresh || !currentTraceId) {
+            return;
+        }
+
+        const timer = setInterval(() => {
+            traceAutoRefreshCountRef.current += 1;
+
+            if (traceAutoRefreshCountRef.current > 20) {
+                // React 会重新渲染，useEffect 的清理函数会执行 clearInterval(timer)
+                setTraceAutoRefresh(false);
+                message.warning("自动刷新已达到上限");
+                return;
+            }
+
+            openTraceDetail(currentTraceId, { resetFilter: false });
+        }, traceRefreshIntervalMs);
+
+        return () => clearInterval(timer);
+    }, [traceDrawerOpen, traceAutoRefresh, currentTraceId, traceRefreshIntervalMs]);
 
     useEffect(() => {
         fetchLogs();
@@ -302,13 +384,56 @@ const LogList = () => {
 
         if (step.step === "task_failed") {
             return (
-            <div style={{ color: "#ff4d4f", marginTop: 4 }}>
-                失败原因：{detail.reason === "max_retries_exceeded" ? "超过最大重试次数" : "不可重试错误"}
-            </div>
+                <div style={{ color: "#ff4d4f", marginTop: 4 }}>
+                    失败原因：{detail.reason === "max_retries_exceeded" ? "超过最大重试次数" : "不可重试错误"}
+                </div>
             );
         }
+
+        if (detail.wait) {
+            return (
+                <div style={{ color: "#fa8c16", marginTop: 4 }}>
+                    限流等待：{Math.ceil(detail.wait)} 秒
+                </div>
+            );
+        }
+
         return null
     }
+
+    const renderStepDetail = (value) => {
+        const detail = value || {};
+        const keys = Object.keys(detail);
+
+        if (keys.length === 0) {
+            return "-";
+        }
+
+        const summaryKeys = ["retry_count", "max_retries", "countdown", "wait", "hit_count", "top_k", "model", "stream"];
+        const summary = summaryKeys
+            .filter((key) => detail[key] !== undefined && detail[key] !== null)
+            .map((key) => `${key}: ${detail[key]}`)
+            .join("，");
+
+        return (
+            <div>
+                {summary && (
+                    <div style={{ marginBottom: 4 }}>
+                        {summary}
+                    </div>
+                )}
+                <Typography.Text
+                    copyable={{
+                        text: JSON.stringify(detail, null, 2),
+                    }}
+                    type="secondary"
+                    style={{ fontSize: 12 }}
+                >
+                    复制完整 detail
+                </Typography.Text>
+            </div>
+        );
+    };
 
     const columns = [
         { title: "ID", dataIndex: "id", width: 60 },
@@ -352,6 +477,20 @@ const LogList = () => {
 
     const traceSteps = traceDetail?.steps || traceDetail?.rag_steps || [];
     const failedSteps = traceSteps.filter((item) => !item.success);
+
+    const [stepFilter, setStepFilter] = useState("all");
+    const displayedTraceSteps = traceSteps.filter((step) => {
+        if (stepFilter === "failed") {
+            return !step.success;
+        }
+
+        if (stepFilter === "retry") {
+            return step.step === "task_retry";
+        }
+
+        return true;
+    });
+
 
 
     return (
@@ -485,7 +624,7 @@ const LogList = () => {
                             pageSize: pagination.pageSize,
                             total: pagination.total,
                             showSizeChanger: false,
-                            position: ["bottomCenter"],
+                            placement: "bottomCenter",
                             showTotal: (total) => `共 ${total} 条`,
                         }}
                         onChange={(nextPagination) => {
@@ -499,21 +638,42 @@ const LogList = () => {
                 </Spin>
 
                 <Drawer
-                    title="trace 详情"
+                    title={
+                        <Space>
+                            <span>trace 详情</span>
+                            <Button
+                                size="small"
+                                onClick={() => openTraceDetail(currentTraceId, { resetFilter: false, autoRefreshByStatus: false })}
+                                disabled={!currentTraceId || traceLoading}
+                            >
+                                刷新
+                            </Button>
+                            <Switch
+                                checked={traceAutoRefresh}
+                                onChange={setTraceAutoRefresh}
+                                checkedChildren="自动刷新"
+                                unCheckedChildren="手动刷新"
+                            />
+                        </Space>
+                    }
                     open={traceDrawerOpen}
-                    onClose={() => setTraceDrawerOpen(false)}
-                    width={820}
+                    onClose={() => { setTraceDrawerOpen(false); setTraceAutoRefresh(false) }}
+                    size="large"
                 >
                     <Spin spinning={traceLoading}>
                         {traceDetail && (
                             <Space
-                                direction="vertical"
+                                orientation="vertical"
                                 style={{ width: "100%" }}
                                 size="middle"
                             >
                                 <Descriptions bordered size="small" column={1}>
                                     <Descriptions.Item label="trace_id">
-                                        {traceDetail.trace_id}
+                                        <Space>
+                                            <Typography.Text copyable>
+                                                {traceDetail.trace_id}
+                                            </Typography.Text>
+                                        </Space>
                                     </Descriptions.Item>
                                     <Descriptions.Item label="日志数量">
                                         {traceDetail.summary?.log_count}
@@ -571,7 +731,24 @@ const LogList = () => {
                                         ]}
                                     />
                                 </Card>
-                                <Card size="small" title="AI 请求步骤日志">
+                                <Card size="small" title={
+                                    <Space>
+                                        <span>AI 请求步骤日志</span>
+                                        <Tag color="blue">{displayedTraceSteps.length} 条</Tag>
+                                    </Space>
+                                }
+                                    extra={
+                                        <Segmented
+                                            value={stepFilter}
+                                            onChange={setStepFilter}
+                                            options={[
+                                                { label: "全部", value: "all" },
+                                                { label: "失败", value: "failed" },
+                                                { label: "重试", value: "retry" },
+                                            ]}
+                                        />
+                                    }
+                                >
                                     <Table
                                         size="small"
                                         rowKey="id"
@@ -579,7 +756,15 @@ const LogList = () => {
                                             record.success ? "" : "trace-step-failed-row"
                                         }
                                         pagination={false}
-                                        dataSource={traceSteps}
+                                        dataSource={displayedTraceSteps}
+                                        locale={{
+                                            emptyText:
+                                                stepFilter === "failed"
+                                                    ? "当前链路没有失败步骤"
+                                                    : stepFilter === "retry"
+                                                        ? "当前链路没有重试步骤"
+                                                        : "暂无执行步骤",
+                                        }}
                                         columns={[
                                             {
                                                 title: "步骤",
@@ -587,8 +772,11 @@ const LogList = () => {
                                                 width: 150,
                                                 render: (value, record) => (
                                                     <div>
-                                                    <div>{value}</div>
-                                                    {renderStepExtra(record)}
+                                                        <div>{getStepLabel(value)}</div>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                                            {value}
+                                                        </Typography.Text>
+                                                        {renderStepExtra(record)}
                                                     </div>
                                                 ),
                                             },
@@ -611,14 +799,20 @@ const LogList = () => {
                                             {
                                                 title: "详情",
                                                 dataIndex: "detail",
-                                                render: (value) => (
-                                                    <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                                                        {JSON.stringify(value || {}, null, 2)}
-                                                    </pre>
-                                                ),
+                                                render: renderStepDetail,
                                             },
-                                            { title: "错误", dataIndex: "error_message" },
-                                            
+                                            {
+                                                title: "错误",
+                                                dataIndex: "error_message",
+                                                render: (value) =>
+                                                    value ? (
+                                                        <Typography.Text copyable type="danger">
+                                                            {value}
+                                                        </Typography.Text>
+                                                    ) : (
+                                                        "-"
+                                                    ),
+                                            },
                                         ]}
                                     />
                                 </Card>

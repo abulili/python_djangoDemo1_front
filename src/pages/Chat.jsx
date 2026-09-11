@@ -379,7 +379,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                     readStream()
                 }).catch(err => {
                     if (err.name === 'AbortError') {
-                        console.log('SSE请求已取消')
+                        
                         return;
                     }
                     console.error('读取流失败:', err);
@@ -407,7 +407,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             }
 
             const res = await request.get(`${import.meta.env.VITE_API_URL}/logs/task/${taskId}/`);
-            console.log('getTaskId', res)
+            
             if (res.data.data?.status === 'success') {
                 setResponse(res.data.data.result?.response || res.data.data.message?.response || '');
                 clearInterval(getTaskTimerRef.current);
@@ -452,8 +452,12 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                     setResponse("当前账号无权限查看该任务结果");
                     message.error("无权限查看任务结果");
                 } else if (status === 429) {
-                    setResponse("任务查询太频繁，请稍后再试");
-                    message.warning("查询太频繁，请稍后再试");
+                    const wait = error.response?.data?.data?.wait;
+                    const text = wait
+                        ? `任务查询太频繁，请 ${Math.ceil(wait)} 秒后再试`
+                        : "任务查询太频繁，请稍后再试";
+                    setResponse(text);
+                    message.warning(text);
                 }
 
                 return;
@@ -507,7 +511,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             }
             setLoading(true);
             const res = await request.post(`/logs/call_company_ai4/`, payload);
-            console.log('singleChat', res)
+            
             if (res.data?.data?.task_id) {
                 taskPollCountRef.current = 0;
                 if (getTaskTimerRef.current === null) {
@@ -632,7 +636,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
 
 
                     {!streamStream && !ragEnabled && (
-                        <Card direction="vertical" style={{ width: '100%' }}>
+                        <Card orientation="vertical" style={{ width: '100%' }}>
                             <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
                                 value={selectedTemplate?.id}
                                 onChange={handleTemplateChange}

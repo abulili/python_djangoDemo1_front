@@ -82,7 +82,7 @@ const PromptTemplates = () => {
 
         try {
             if (editing) {
-                console.log('editing', editing)
+                
                 await request.put(`/prompt-templates/${editing.id}/`, payload);
                 message.success('模板已更新')
             } else {
@@ -113,7 +113,7 @@ const PromptTemplates = () => {
             const res = await request.get('/prompt-templates/', {
                 params: keyword ? { keyword } : {}
             })
-            console.log('fetchTemplates', res.data)
+            
             const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
             setTemplates(list);
             // setTemplates(Array.isArray(res.data) ? res.data : [])

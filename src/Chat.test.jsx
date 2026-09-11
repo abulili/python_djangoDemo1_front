@@ -81,8 +81,6 @@ describe("Chat轮询", () => {
     // 每个测试结束后恢复环境。
     afterEach(() => {
         vi.clearAllTimers();
-        // 恢复真实时间
-        vi.useRealTimers();
         localStorage.clear();
     });
 
@@ -338,6 +336,128 @@ describe("Chat轮询", () => {
         expect(request.get.mock.calls.length).toBe(callsAfterUnknown);
     }, 15000);
 
+    it("数据库恢复成功后停止轮询并显示回答", async () => {
+        request.post.mockResolvedValue({
+            data: {
+                data: {
+                    task_id: "recovered-task-id",
+                    status: "processing",
+                },
+            },
+        });
+
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            if (String(url).includes("/logs/task/recovered-task-id/")) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            celery_status: "RECOVERED",
+                            status: "success",
+                            result: {
+                                response: "数据库恢复出来的回答",
+                                conversation_id: "recovered-conversation-001",
+                            },
+                            error: "",
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat maxTaskPollCount={2} taskPollIntervalMs={10} />
+            </MemoryRouter>
+        );
+
+        const textarea = screen.getByPlaceholderText(/请输入消息/);
+        fireEvent.change(textarea, {
+            target: { value: "测试恢复结果" },
+        });
+
+        const sendButton = screen.getByRole("button", { name: /发送/ });
+        fireEvent.click(sendButton);
+
+        await waitFor(() => {
+            expect(screen.getByText("数据库恢复出来的回答")).toBeInTheDocument();
+        }, { timeout: 3000 });
+
+        const callsAfterRecovered = request.get.mock.calls.length;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        expect(request.get.mock.calls.length).toBe(callsAfterRecovered);
+    }, 15000);
+
+    it("任务超时后停止轮询并显示错误", async () => {
+        request.post.mockResolvedValue({
+            data: {
+                data: {
+                    task_id: "timeout-task-id",
+                    status: "processing",
+                },
+            },
+        });
+
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            if (String(url).includes("/logs/task/timeout-task-id/")) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            celery_status: "PENDING",
+                            status: "failed",
+                            status_text: "任务超时",
+                            result: null,
+                            error: "任务超过 5 分钟仍未完成，请重新提交",
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat maxTaskPollCount={2} taskPollIntervalMs={10} />
+            </MemoryRouter>
+        );
+
+        const textarea = screen.getByPlaceholderText(/请输入消息/);
+        fireEvent.change(textarea, {
+            target: { value: "测试任务超时" },
+        });
+
+        const sendButton = screen.getByRole("button", { name: /发送/ });
+        fireEvent.click(sendButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/请求失败: 任务超过 5 分钟仍未完成/)).toBeInTheDocument();
+        }, { timeout: 3000 });
+
+        const callsAfterTimeout = request.get.mock.calls.length;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        expect(request.get.mock.calls.length).toBe(callsAfterTimeout);
+    }, 15000);
+
     it("任务查询返回404后停止轮询", async () => {
         request.post.mockResolvedValue({
             data: {
@@ -485,8 +605,12 @@ describe("Chat轮询", () => {
                     response: {
                         status: 429,
                         data: {
-                            message: "请求过于频繁",
-                        },
+                            code: 429,
+                            message: "请求过于频繁，请 10 秒后再试",
+                            data: {
+                                wait: 10,
+                            },
+                        }
                     },
                 });
             }
@@ -511,9 +635,9 @@ describe("Chat轮询", () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText("任务查询太频繁，请稍后再试")).toBeInTheDocument();
+            expect(screen.getByText("任务查询太频繁，请 10 秒后再试")).toBeInTheDocument();
         });
-        
+
         // 后面都是判断请求有没有停止
         const taskCallsAfter429 = request.get.mock.calls.filter(([url]) =>
             String(url).includes("/logs/task/task-throttled/")

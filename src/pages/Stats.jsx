@@ -34,7 +34,7 @@ const Stats = () => {
     }, [navigate]);
 
     if (loading) {
-        return <Spin tip="加载中..." style={{ display: 'block', marginTop: 100 }}></Spin>;
+        return <Spin description="加载中..." style={{ display: 'block', marginTop: 100 }}></Spin>;
     }
 
     return (

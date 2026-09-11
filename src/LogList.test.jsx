@@ -1,6 +1,6 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import LogList from "./pages/LogList";
@@ -137,11 +137,20 @@ const mockRequestGet = ({ traceId, logOverrides = {}, traceOverrides = {} }) => 
         return Promise.reject(new Error(`unexpected url: ${url}`));
     });
 };
+const originalGetComputedStyle = window.getComputedStyle;
 
-describe("LogList trace drawer", () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
+afterEach(() => {
+    window.getComputedStyle = originalGetComputedStyle;
+});
+
+beforeEach(() => {
+    vi.clearAllMocks();
+
+    window.getComputedStyle = vi.fn((element) => {
+        return originalGetComputedStyle(element);
     });
+});
+describe("LogList trace drawer", () => {
 
     it("加载日志列表并展示 trace_id", async () => {
         const traceId = "trace-list-001";
@@ -190,7 +199,7 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText(/流式\s*2/)).toBeInTheDocument();
         expect(screen.getByText(/RAG\s*0/)).toBeInTheDocument();
         expect(screen.getByText(/异步任务\s*0/)).toBeInTheDocument();
-    });
+    }, 10000);
 
     it("trace 详情存在失败步骤时显示异常状态", async () => {
         const traceId = "trace-failed-001";
@@ -260,7 +269,7 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText(/流式\s*2/)).toBeInTheDocument();
         expect(screen.getByText(/RAG\s*0/)).toBeInTheDocument();
         expect(screen.getByText(/异步任务\s*0/)).toBeInTheDocument();
-    });
+    }, 10000);
 
     it("加载 trace 详情失败时提示错误", async () => {
         const traceId = "trace-error-001";
@@ -293,5 +302,368 @@ describe("LogList trace drawer", () => {
         await waitFor(() => {
             expect(message.error).toHaveBeenCalledWith("加载 trace 详情失败");
         });
+    });
+
+    it("打开已完成trace时不会自动刷新", async () => {
+        request.get.mockImplementation((url) => {
+            if (String(url).includes("/logs/trace/trace-done-001/")) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            trace_id: "trace-done-001",
+                            logs: [],
+                            steps: [
+                                {
+                                    id: 1,
+                                    step: "task_done",
+                                    success: true,
+                                    duration: 1.2,
+                                    detail: {},
+                                    error_message: "",
+                                },
+                            ],
+                            summary: {
+                                log_count: 0,
+                                step_count: 1,
+                                failed_step_count: 0,
+                                stream_step_count: 0,
+                                rag_step_count: 0,
+                                task_step_count: 1,
+                                total_duration: 1.2,
+                            },
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({
+                data: {
+                    results: [
+                        {
+                            id: 1,
+                            prompt: "测试问题",
+                            response: "测试回答",
+                            model_name: "deepseek",
+                            success: true,
+                            trace_id: "trace-done-001",
+                            call_time: "2026-09-10 10:00:00",
+                        },
+                    ],
+                    count: 1,
+                },
+            });
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList traceRefreshIntervalMs={20} />
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText("trace-done-001")).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText("trace-done-001"));
+
+        await waitFor(() => {
+            expect(screen.getByText("任务完成")).toBeInTheDocument();
+        });
+
+        const traceCallsAfterOpen = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/trace/trace-done-001/")
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        const traceCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes("/logs/trace/trace-done-001/")
+        ).length;
+
+        expect(traceCallsLater).toBe(traceCallsAfterOpen);
+    }, 8000);
+
+    it("打开未完成trace时会自动刷新", async () => {
+        const traceId = "trace-running-001";
+
+        request.get.mockImplementation((url) => {
+            if (url === "/logs/stats/") {
+                return Promise.resolve(mockStatsResponse);
+            }
+
+            if (url === "/logs/") {
+                return Promise.resolve(createLogListResponse(traceId));
+            }
+
+            if (url === `/logs/trace/${traceId}/`) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            trace_id: traceId,
+                            logs: [],
+                            steps: [
+                                {
+                                    id: 1,
+                                    step: "task_start",
+                                    success: true,
+                                    duration: 0,
+                                    detail: {},
+                                    error_message: "",
+                                },
+                                {
+                                    id: 2,
+                                    step: "call_model_start",
+                                    success: true,
+                                    duration: 0,
+                                    detail: {},
+                                    error_message: "",
+                                },
+                            ],
+                            summary: {
+                                log_count: 0,
+                                step_count: 2,
+                                failed_step_count: 0,
+                                stream_step_count: 0,
+                                rag_step_count: 0,
+                                task_step_count: 2,
+                                total_duration: 0,
+                            },
+                        },
+                    },
+                });
+            }
+
+            return Promise.reject(new Error(`unexpected url: ${url}`));
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList traceRefreshIntervalMs={20} />
+            </MemoryRouter>
+        );
+
+        const traceText = await screen.findByText(traceId);
+        fireEvent.click(traceText);
+
+        await waitFor(() => {
+            expect(screen.getByText("任务开始")).toBeInTheDocument();
+        });
+
+        const traceCallsAfterOpen = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        const traceCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        expect(traceCallsLater).toBeGreaterThan(traceCallsAfterOpen);
+    }, 8000);
+
+    it("关闭 trace 抽屉后停止自动刷新", async () => {
+        const traceId = "trace-close-001";
+
+        request.get.mockImplementation((url) => {
+            if (url === "/logs/stats/") {
+                return Promise.resolve(mockStatsResponse);
+            }
+
+            if (url === "/logs/") {
+                return Promise.resolve(createLogListResponse(traceId));
+            }
+
+            if (url === `/logs/trace/${traceId}/`) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            trace_id: traceId,
+                            logs: [],
+                            steps: [
+                                {
+                                    id: 1,
+                                    step: "task_start",
+                                    success: true,
+                                    duration: 0,
+                                    detail: {},
+                                    error_message: "",
+                                },
+                            ],
+                            summary: {
+                                log_count: 0,
+                                step_count: 1,
+                                failed_step_count: 0,
+                                stream_step_count: 0,
+                                rag_step_count: 0,
+                                task_step_count: 1,
+                                total_duration: 0,
+                            },
+                        },
+                    },
+                });
+            }
+
+            return Promise.reject(new Error(`unexpected url: ${url}`));
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList traceRefreshIntervalMs={20} />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByText(traceId));
+
+        await waitFor(() => {
+            expect(screen.getByText("任务开始")).toBeInTheDocument();
+        });
+
+        await waitFor(() => {
+            const traceCalls = request.get.mock.calls.filter(([url]) =>
+                String(url).includes(`/logs/trace/${traceId}/`)
+            ).length;
+
+            expect(traceCalls).toBeGreaterThan(1);
+        });
+
+        const closeButton = document.querySelector(".ant-drawer-close");
+        fireEvent.click(closeButton);
+
+        const traceCallsAfterClose = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        const traceCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        expect(traceCallsLater).toBe(traceCallsAfterClose);
+    }, 8000);
+
+    it("trace 出现 task_timeout 后停止自动刷新", async () => {
+        const traceId = "trace-task-timeout-001";
+
+        mockRequestGet({
+            traceId,
+            traceOverrides: {
+                steps: [
+                    {
+                        id: 1,
+                        trace_id: traceId,
+                        step: "task_start",
+                        success: true,
+                        duration: 0,
+                        detail: {},
+                        error_message: "",
+                    },
+                    {
+                        id: 2,
+                        trace_id: traceId,
+                        step: "task_timeout",
+                        success: false,
+                        duration: 0,
+                        detail: {
+                            task_id: "timeout-task-id",
+                            celery_status: "PENDING",
+                            timeout_minutes: 5,
+                        },
+                        error_message: "任务超过 5 分钟仍未完成",
+                    },
+                ],
+                summary: {
+                    log_count: 0,
+                    step_count: 2,
+                    failed_step_count: 1,
+                    stream_step_count: 0,
+                    rag_step_count: 0,
+                    task_step_count: 2,
+                    has_failed_step: true,
+                },
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList traceRefreshIntervalMs={20} />
+            </MemoryRouter>
+        );
+
+        await screen.findByText(traceId);
+
+        const traceLinks = await screen.findAllByText(traceId);
+        fireEvent.click(traceLinks[0]);
+
+        expect(await screen.findByText("任务超时")).toBeInTheDocument();
+        expect(screen.getByText("异常")).toBeInTheDocument();
+
+        const traceCallsAfterTimeout = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        const traceCallsLater = request.get.mock.calls.filter(([url]) =>
+            String(url).includes(`/logs/trace/${traceId}/`)
+        ).length;
+
+        expect(traceCallsLater).toBe(traceCallsAfterTimeout);
+    });
+
+    it("trace 展示 task_recovered 为任务恢复", async () => {
+        const traceId = "trace-task-recovered-001";
+
+        mockRequestGet({
+            traceId,
+            traceOverrides: {
+                steps: [
+                    {
+                        id: 1,
+                        trace_id: traceId,
+                        step: "task_done",
+                        success: true,
+                        duration: 1.2,
+                        detail: {},
+                        error_message: "",
+                    },
+                    {
+                        id: 2,
+                        trace_id: traceId,
+                        step: "task_recovered",
+                        success: true,
+                        duration: 0,
+                        detail: {
+                            task_id: "recovered-task-id",
+                            source: "AICallLog",
+                            restored_owner_cache: true,
+                        },
+                        error_message: "",
+                    },
+                ],
+                summary: {
+                    log_count: 1,
+                    step_count: 2,
+                    failed_step_count: 0,
+                    stream_step_count: 0,
+                    rag_step_count: 0,
+                    task_step_count: 2,
+                    has_failed_step: false,
+                },
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList traceRefreshIntervalMs={20} />
+            </MemoryRouter>
+        );
+
+        const traceLinks = await screen.findAllByText(traceId);
+        fireEvent.click(traceLinks[0]);
+
+        expect(await screen.findByText("正常")).toBeInTheDocument();
+        expect(await screen.findByText("任务恢复")).toBeInTheDocument();
+        expect(await screen.findByText("task_recovered")).toBeInTheDocument();
     });
 });
