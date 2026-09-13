@@ -8,7 +8,17 @@ const request = axios.create({
     baseURL: API_URL,
     timeout: 60000,
 });
-
+export const handleLogout = async () => {
+    try {
+        await request.post("/users/logout/");
+    } catch (error) {
+        // 即使后端登出失败，前端也清本地 token，避免用户留在登录态页面
+    } finally {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        window.location.href = '/';
+    }
+};
 export const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem('refresh_token')
 
@@ -31,9 +41,7 @@ export const refreshAccessToken = async () => {
         localStorage.setItem('access_token', newAccessToken);
         return newAccessToken;
     } catch (error) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/';
+        await handleLogout();
         return Promise.reject(error);
     }
 }
@@ -76,9 +84,7 @@ request.interceptors.response.use(
             originalRequest._retry = true;
             const refreshToken = localStorage.getItem('refresh_token');
             if (!refreshToken) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/';
+                await handleLogout();
                 return Promise.reject(error);
             }
 
@@ -97,9 +103,7 @@ request.interceptors.response.use(
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                 return request(originalRequest);
             } catch (error) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/';
+                await handleLogout();
                 return Promise.reject(error);
             }
         }

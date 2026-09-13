@@ -32,7 +32,7 @@ import {
     RobotOutlined,
     FileTextOutlined,
 } from "@ant-design/icons";
-import request from "../utils/request";
+import request, { handleLogout } from "../utils/request";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -283,6 +283,8 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             build_messages: "构建消息",
             stream_done: "流式完成",
             stream_failed: "流式失败",
+
+            notify_feishu: "飞书通知",
         };
 
         return stepMap[step] || step;
@@ -496,6 +498,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             render: (value) =>
                 value ? (
                     <Typography.Text
+                        data-testid={`trace-link-${value}`}
                         copyable
                         style={{ maxWidth: 160 }}
                         ellipsis
@@ -571,6 +574,9 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchLogs}>
                             刷新
+                        </Button>
+                        <Button type="primary" danger  onClick={handleLogout}>
+                            退出登录
                         </Button>
                     </Space>
                 </div>

@@ -4,7 +4,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import LogList from "./pages/LogList";
-import request from "./utils/request";
+import request, { handleLogout } from "./utils/request";
 import { message } from "antd";
 
 vi.mock("@ant-design/icons", () => ({
@@ -19,11 +19,25 @@ vi.mock("@ant-design/icons", () => ({
     FileTextOutlined: () => null,
 }));
 
-vi.mock("./utils/request", () => ({
-    default: {
+vi.mock("./utils/request", () => {
+    const mockRequest = {
         get: vi.fn(),
-    },
-}));
+        post: vi.fn(),
+    };
+    return {
+        default: mockRequest,
+        handleLogout: vi.fn(async () => {
+            try {
+                await mockRequest.post("/users/logout/");
+            } catch (error) {
+                // 后端登出失败时，也继续清理前端 token
+            } finally {
+                localStorage.removeItem("access_token");
+                localStorage.removeItem("refresh_token");
+            }
+        }),
+    };
+});
 
 vi.mock("antd", async () => {
     const antd = await vi.importActual("antd");
@@ -135,17 +149,17 @@ const mockRequestGet = ({ traceId, logOverrides = {}, traceOverrides = {} }) => 
         }
 
         if (url === "/logs/observability-summary/") {
-                return Promise.resolve({
+            return Promise.resolve({
+                data: {
                     data: {
-                        data: {
-                            retry_count: 100,
-                            timeout_count: 200,
-                            recovered_count: 300,
-                            failed_step_count: 400,
-                        },
+                        retry_count: 100,
+                        timeout_count: 200,
+                        recovered_count: 300,
+                        failed_step_count: 400,
                     },
-                });
-            }
+                },
+            });
+        }
 
         return Promise.reject(new Error(`unexpected url: ${url}`));
     });
@@ -683,7 +697,7 @@ describe("LogList trace drawer", () => {
     it("展示可观测性摘要", async () => {
         const traceId = "trace-observability-001";
         mockRequestGet({ traceId });
-        
+
         render(
             <MemoryRouter>
                 <LogList />
@@ -704,4 +718,185 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText("300")).toBeInTheDocument();
         expect(screen.getByText("400")).toBeInTheDocument();
     });
+
+    it("trace 展示 notify_feishu 为飞书通知", async () => {
+        const traceId = "trace-feishu-notify";
+
+        request.get.mockImplementation((url) => {
+            if (url === "/logs/stats/") {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            total_calls: 1,
+                            success_calls: 1,
+                            failed_calls: 0,
+                            avg_duration: 1.2,
+                            total_tokens: 30,
+                            total_cost: 0.001,
+                        },
+                    },
+                });
+            }
+
+            if (url === "/logs/observability-summary/") {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            retry_count: 0,
+                            timeout_count: 0,
+                            recovered_count: 0,
+                            failed_step_count: 0,
+                        },
+                    },
+                });
+            }
+
+            if (url === `/logs/trace/${traceId}/`) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            trace_id: traceId,
+                            summary: {
+                                status: "success",
+                                step_count: 4,
+                                failed_count: 0,
+                                total_duration: 1.2,
+                            },
+                            steps: [
+                                {
+                                    step: "task_start",
+                                    success: true,
+                                    duration: 0,
+                                    error_message: "",
+                                    detail: {},
+                                    created_at: "2026-09-12T10:00:00+08:00",
+                                },
+                                {
+                                    step: "call_model_start",
+                                    success: true,
+                                    duration: 0,
+                                    error_message: "",
+                                    detail: {},
+                                    created_at: "2026-09-12T10:00:01+08:00",
+                                },
+                                {
+                                    step: "notify_feishu",
+                                    success: true,
+                                    duration: 0,
+                                    error_message: "",
+                                    detail: {
+                                        sent: true,
+                                        response: { code: 0, msg: "success" },
+                                    },
+                                    created_at: "2026-09-12T10:00:02+08:00",
+                                },
+                                {
+                                    step: "task_done",
+                                    success: true,
+                                    duration: 1.2,
+                                    error_message: "",
+                                    detail: {},
+                                    created_at: "2026-09-12T10:00:03+08:00",
+                                },
+                            ],
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({
+                data: {
+                    results: [
+                        {
+                            id: 1,
+                            prompt: "测试飞书通知 trace",
+                            response: "AI 回答",
+                            success: true,
+                            duration: 1.2,
+                            total_tokens: 30,
+                            cost: 0.001,
+                            trace_id: traceId,
+                            created_at: "2026-09-12T10:00:00+08:00",
+                        },
+                    ],
+                },
+            });
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList />
+            </MemoryRouter>
+        )
+
+        expect(await screen.findByText("测试飞书通知 trace")).toBeInTheDocument();
+
+        fireEvent.click(await screen.findByTestId(`trace-link-${traceId}`));
+
+        expect(await screen.findByText("飞书通知")).toBeInTheDocument();
+        expect(await screen.findByText("notify_feishu")).toBeInTheDocument();
+    });
+
+    it("退出登录时调用后端登出接口并清理 token", async () => {
+        request.get.mockResolvedValue({
+            data: {
+                count: 0,
+                results: [],
+            },
+        });
+        request.post.mockResolvedValue({
+            data: {
+                code: 200,
+                message: "退出登录成功",
+                data: null,
+            },
+        });
+
+        localStorage.setItem("access_token", "test-access");
+        localStorage.setItem("refresh_token", "test-refresh");
+
+        render(
+            <MemoryRouter>
+                <LogList />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByText("退出登录"));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith("/users/logout/");
+        });
+
+        expect(localStorage.getItem("access_token")).toBeNull();
+        expect(localStorage.getItem("refresh_token")).toBeNull();
+    });
+    it("后端登出失败时仍然清理本地 token", async () => {
+        request.get.mockResolvedValue({
+            data: {
+                count: 0,
+                results: [],
+            },
+        });
+        request.post.mockRejectedValue(new Error("logout failed"));
+
+        localStorage.setItem("access_token", "test-access");
+        localStorage.setItem("refresh_token", "test-refresh");
+
+        render(
+            <MemoryRouter>
+                <LogList />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByText("退出登录"));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith("/users/logout/");
+        });
+
+        expect(localStorage.getItem("access_token")).toBeNull();
+        expect(localStorage.getItem("refresh_token")).toBeNull();
+    });
+
 });
+
