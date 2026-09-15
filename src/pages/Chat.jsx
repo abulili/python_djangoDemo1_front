@@ -18,6 +18,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
     // const [conversationId, setConversationId] = useState('');
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState('');
+    const [chatMessages, setChatMessages] = useState([]);
     // const [model, setModel] = useState('deepseek');
 
     const [ragEnabled, setRagEnabled] = useState(false); // 是否开启知识库问答
@@ -51,6 +52,22 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
     const streamControllerRef = React.useRef(null);
     const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
     const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
+    const currentAssistantMessageIdRef = React.useRef(null);
+
+    const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const appendChatMessage = (role, content, extra = {}) => {
+        const id = createMessageId();
+        setChatMessages(prev => [...prev, { id, role, content, ...extra }]);
+        return id;
+    };
+
+    const updateChatMessage = (id, patch) => {
+        if (!id) return;
+        setChatMessages(prev => prev.map(item => (
+            item.id === id ? { ...item, ...patch } : item
+        )));
+    };
 
     // 
     const ragChat = async () => {
@@ -126,6 +143,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                 clearInterval(typingTimerRef.current);
                 typingTimerRef.current = null;
             }
+            currentAssistantMessageIdRef.current = null;
         };
     }, []);
 
@@ -157,9 +175,15 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             setResponse('');
             setConversationId(id);
             setReferences([]);
+            currentAssistantMessageIdRef.current = null;
 
             const res = await request.get(`/logs/conversation/${id}/`);
             const history = res.data?.data?.history || [];
+            setChatMessages(history.map((item) => ({
+                id: item.id || createMessageId(),
+                role: item.role === 'user' ? 'user' : 'assistant',
+                content: item.content || '',
+            })));
             const text = history.map((item) => {
                 const roleName = item.role === 'user' ? '我' : 'AI';
                 return `${roleName}：${item.content || ''}`
@@ -183,6 +207,8 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         setResponse('');
         setPrompt('');
         setReferences([]);
+        setChatMessages([]);
+        currentAssistantMessageIdRef.current = null;
     }
 
     // ====== 模板
@@ -547,9 +573,12 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
 
         if (loading) return;
 
+        const userMessage = prompt.trim();
         setLoading(true);
         setResponse('');
         setReferences([]);
+        appendChatMessage('user', userMessage);
+        currentAssistantMessageIdRef.current = appendChatMessage('assistant', '', { pending: true });
 
         pendingTextRef.current = '';
 
@@ -582,6 +611,15 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         else singleChat();
     }
 
+    useEffect(() => {
+        if (!currentAssistantMessageIdRef.current) return;
+
+        updateChatMessage(currentAssistantMessageIdRef.current, {
+            content: response,
+            pending: loading && !response,
+        });
+    }, [response, loading]);
+
     // style
     const siderStyle = {
         textAlign: 'center',
@@ -589,6 +627,40 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         color: '#fff',
         backgroundColor: '#1677ff',
     };
+
+    const chatPanelStyle = {
+        flex: 1,
+        minHeight: 320,
+        background: '#f6f8fb',
+        border: '1px solid #e8edf3',
+    };
+
+    const chatMessagesStyle = {
+        minHeight: 260,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        padding: '4px 0',
+    };
+
+    const bubbleRowStyle = (role) => ({
+        display: 'flex',
+        justifyContent: role === 'user' ? 'flex-end' : 'flex-start',
+    });
+
+    const bubbleStyle = (role) => ({
+        maxWidth: '72%',
+        padding: '10px 14px',
+        borderRadius: role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+        background: role === 'user' ? '#1677ff' : '#fff',
+        color: role === 'user' ? '#fff' : '#1f2937',
+        border: role === 'user' ? '1px solid #1677ff' : '1px solid #e5e7eb',
+        boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)',
+        whiteSpace: 'pre-wrap',
+        lineHeight: 1.7,
+        textAlign: 'left',
+        wordBreak: 'break-word',
+    });
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -658,10 +730,24 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                             ))}
                         </Card>
                     )}
-                    <Card style={{ flex: 1, minHeight: 200, background: '#f5f5f5' }}>
+                    <Card style={chatPanelStyle}>
                         <Spin spinning={loading} description="AI 正在思考...">
-                            <div style={{ whiteSpace: 'pre-wrap', minHeight: 100 }}>
-                                {response || <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>}
+                            <div style={chatMessagesStyle}>
+                                {chatMessages.length > 0 ? (
+                                    chatMessages.map((item) => (
+                                        <div key={item.id} style={bubbleRowStyle(item.role)}>
+                                            <div style={bubbleStyle(item.role)}>
+                                                {item.content || (
+                                                    <Typography.Text type="secondary">
+                                                        {item.pending ? 'AI 正在思考...' : ''}
+                                                    </Typography.Text>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>
+                                )}
                             </div>
                         </Spin>
                     </Card>
