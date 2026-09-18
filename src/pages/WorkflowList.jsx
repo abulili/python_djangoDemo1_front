@@ -55,7 +55,17 @@ function getPaymentStatusTag(status) {
     const item = PAYMENT_STATUS_MAP[status] || { text: status, color: "default" };
     return <Tag color={item.color}>{item.text}</Tag>;
 }
+const TASK_STATUS_MAP = {
+    pending: { text: "待处理", color: "processing" },
+    approved: { text: "已通过", color: "success" },
+    rejected: { text: "已驳回", color: "error" },
+    cancelled: { text: "已取消", color: "warning" },
+};
 
+function getTaskStatusTag(status) {
+    const item = TASK_STATUS_MAP[status] || { text: status, color: "default" };
+    return <Tag color={item.color}>{item.text}</Tag>;
+}
 export default function WorkflowList() {
     const [loading, setLoading] = useState(false);
     const [mine, setMine] = useState([]);
@@ -188,6 +198,25 @@ export default function WorkflowList() {
             render: getStatusTag,
         },
         {
+            title: "当前节点",
+            render: (_, record) => {
+                const currentTask = (record.tasks || []).find((task) => task.status === "pending");
+
+                if (!currentTask) {
+                    return "-";
+                }
+
+                return (
+                    <Space direction="vertical" size={0}>
+                        <span>{currentTask.node_name}</span>
+                        <span style={{ color: "#999", fontSize: 12 }}>
+                            {currentTask.approver_username || "-"}
+                        </span>
+                    </Space>
+                );
+            },
+        },
+        {
             title: "申请人",
             dataIndex: "applicant_username",
         },
@@ -292,7 +321,43 @@ export default function WorkflowList() {
                         </Descriptions>
                     </Card>
                 )}
-
+                <Card title="审批任务">
+                    <Table
+                        rowKey="id"
+                        pagination={false}
+                        dataSource={selected.tasks || []}
+                        columns={[
+                            {
+                                title: "节点",
+                                dataIndex: "node_name",
+                            },
+                            {
+                                title: "顺序",
+                                dataIndex: "node_order",
+                            },
+                            {
+                                title: "审批人",
+                                dataIndex: "approver_username",
+                                render: (value) => value || "-",
+                            },
+                            {
+                                title: "状态",
+                                dataIndex: "status",
+                                render: getTaskStatusTag,
+                            },
+                            {
+                                title: "意见",
+                                dataIndex: "comment",
+                                render: (value) => value || "-",
+                            },
+                            {
+                                title: "处理时间",
+                                dataIndex: "handled_at",
+                                render: (value) => value || "-",
+                            },
+                        ]}
+                    />
+                </Card>
                 <Card title="操作日志">
                     <Table
                         rowKey="id"
