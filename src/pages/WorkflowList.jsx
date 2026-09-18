@@ -74,20 +74,37 @@ export default function WorkflowList() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [form] = Form.useForm();
+    const [templates, setTemplates] = useState([]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            // 两个接口同时请求，并行请求
-            const [mineResponse, pendingResponse] = await Promise.all([
+            // 两个接口同时请求，并行请求  allSettled出来的结果多一个value，成功失败都不影响其它的接口
+            const [mineResponse, pendingResponse, templateResponse] = await Promise.allSettled([
                 request.get("/workflows/requests/mine/"),
                 request.get("/workflows/requests/pending/"),
+                request.get("/workflows/templates/"),
             ]);
 
-            setMine(mineResponse.data.data || []);
-            setPending(pendingResponse.data.data || []);
+            if (mineResponse.status === "fulfilled") {
+                setMine(mineResponse.value.data.data || []);
+            } else {
+                message.error("加载我的申请失败");
+            }
+
+            if (pendingResponse.status === "fulfilled") {
+                setPending(pendingResponse.value.data.data || []);
+            } else {
+                message.error("加载待我审批失败");
+            }
+
+            if (templateResponse.status === "fulfilled") {
+                setTemplates(templateResponse.value.data.results || []);
+            } else {
+                message.error("加载流程模板失败");
+            }
         } catch (error) {
-            message.error("加载工作流数据失败");
+            // message.error("加载工作流数据失败");
         } finally {
             setLoading(false);
         }
@@ -118,6 +135,8 @@ export default function WorkflowList() {
                 description: values.description || "",
                 amount: values.amount,
                 current_approver: values.current_approver,
+                second_approver: values.second_approver,
+                template: values.template,
             });
 
             message.success("创建成功");
@@ -230,6 +249,11 @@ export default function WorkflowList() {
             dataIndex: "created_at",
         },
         {
+            title: "模板",
+            dataIndex: "template_name",
+            render: (value) => value || "-",
+        },
+        {
             title: "操作",
             render: (_, record) => (
                 <Button type="link" onClick={() => openDetail(record)}>
@@ -302,6 +326,9 @@ export default function WorkflowList() {
                         <Descriptions.Item label="状态">{getStatusTag(selected.status)}</Descriptions.Item>
                         <Descriptions.Item label="申请人">{selected.applicant_username}</Descriptions.Item>
                         <Descriptions.Item label="审批人">{selected.current_approver_username || "-"}</Descriptions.Item>
+                        <Descriptions.Item label="流程模板">
+                            {selected.template_name || "-"}
+                        </Descriptions.Item>
                     </Descriptions>
                 </Card>
 
@@ -318,6 +345,9 @@ export default function WorkflowList() {
                             <Descriptions.Item label="支付状态">{getPaymentStatusTag(paymentOrder.status)}</Descriptions.Item>
                             <Descriptions.Item label="支付时间">{paymentOrder.paid_at || "-"}</Descriptions.Item>
                             <Descriptions.Item label="确认时间">{paymentOrder.confirmed_at || "-"}</Descriptions.Item>
+                            <Descriptions.Item label="流程模板">
+                                {selected.template_name || "-"}
+                            </Descriptions.Item>
                         </Descriptions>
                     </Card>
                 )}
@@ -482,9 +512,29 @@ export default function WorkflowList() {
                     </Form.Item>
 
                     <Form.Item
-                        label="审批人 ID"
+                        label="流程模板"
+                        name="template"
+                        rules={[{ required: true, message: "请选择流程模板" }]}
+                    >
+                        <Select
+                            options={templates.map((item) => ({
+                                label: item.name,
+                                value: item.id,
+                            }))}
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="一级审批人 ID"
                         name="current_approver"
-                        rules={[{ required: true, message: "请输入审批人 ID" }]}
+                        rules={[{ required: true, message: "请输入一级审批人 ID" }]}
+                    >
+                        <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="二级审批人 ID"
+                        name="second_approver"
                     >
                         <InputNumber min={1} precision={0} style={{ width: "100%" }} />
                     </Form.Item>
