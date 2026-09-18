@@ -8,15 +8,42 @@ const request = axios.create({
     baseURL: API_URL,
     timeout: 60000,
 });
-export const handleLogout = async () => {
+let isLoggingOut = false;
+let refreshPromise = null;
+const isAuthRequest = (url = "") => {
+    return (
+        url.includes("/token/") ||
+        url.includes("/token/refresh/") ||
+        url.includes("/users/logout/")
+    );
+};
+export const handleLogout = async ({ callBackend = true } = {}) => {
+    if (isLoggingOut) {
+        return;
+    }
+
+    isLoggingOut = true;
+
     try {
-        await request.post("/users/logout/");
+        const accessToken = localStorage.getItem("access_token");
+
+        if (callBackend && accessToken) {
+            await axios.post(
+                `${API_URL}/users/logout/`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                }
+            );
+        }
     } catch (error) {
-        // 即使后端登出失败，前端也清本地 token，避免用户留在登录态页面
+        // 后端登出失败也继续清本地 token
     } finally {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        window.location.href = '/';
+        window.location.href = "/";
     }
 };
 export const refreshAccessToken = async () => {
@@ -41,7 +68,7 @@ export const refreshAccessToken = async () => {
         localStorage.setItem('access_token', newAccessToken);
         return newAccessToken;
     } catch (error) {
-        await handleLogout();
+        await handleLogout({ callBackend: false });
         return Promise.reject(error);
     }
 }
@@ -76,34 +103,40 @@ request.interceptors.response.use(
         }
 
         const originalRequest = error.config;
+        const url = originalRequest.url || "";
 
         // 如果返回 401 且不是刷新 token 的请求本身
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest(url)) {
             // 标记该请求已被重试过，防止401重试时陷入死循环
             // _retry 是自定义标记，用于防止 401 重试时陷入死循环（非 axios 自带属性）
             originalRequest._retry = true;
             const refreshToken = localStorage.getItem('refresh_token');
             if (!refreshToken) {
-                await handleLogout();
+                await handleLogout({ callBackend: false });
                 return Promise.reject(error);
             }
 
             try {
                 // 调用刷新接口
-                const res = await axios.post(`${API_URL}/token/refresh/`,
-                    {
-                        refresh: refreshToken
-                    }
-                );
+                if (!refreshPromise) {
+                    refreshPromise = axios.post(`${API_URL}/token/refresh/`, {
+                        refresh: refreshToken,
+                    }).finally(() => {
+                        refreshPromise = null;
+                    });
+                }
+
+                const res = await refreshPromise;
                 const newAccessToken = res.data.access;
 
                 localStorage.setItem('access_token', newAccessToken);
 
                 // 用token重试原请求
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                 return request(originalRequest);
             } catch (error) {
-                await handleLogout();
+                await handleLogout({ callBackend: false });
                 return Promise.reject(error);
             }
         }
