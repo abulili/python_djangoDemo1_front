@@ -8,6 +8,7 @@ import Stats from './pages/Stats';
 import PromptTemplates from './pages/PromptTemplates';
 import KnowledgeDocuments from './pages/KnowledgeDocuments';
 import WorkflowList from "./pages/WorkflowList";
+import WorkflowTemplateManage from "./pages/WorkflowTemplateManage";
 import 'antd/dist/reset.css';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/prompt-templates" element={<PromptTemplates />} />
           <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
           <Route path="/workflows" element={<WorkflowList />} />
+          <Route path="/workflow-templates" element={<WorkflowTemplateManage />} />
         </Routes>
       </BrowserRouter>
       {/* <header className="App-header">
