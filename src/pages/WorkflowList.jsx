@@ -75,32 +75,42 @@ export default function WorkflowList() {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [form] = Form.useForm();
     const [templates, setTemplates] = useState([]);
+    const [stats, setStats] = useState(null);
 
     const [filters, setFilters] = useState({
-    status: "",
-    request_type: "",
-    template: "",
+        status: "",
+        request_type: "",
+        template: "",
     });
-    
+
+    const fetchStats = async () => {
+        try {
+            const response = await request.get("/workflows/requests/stats/");
+            setStats(response.data.data);
+        } catch (error) {
+            message.error("加载工作流统计失败");
+        }
+    };
+
     const buildQuery = () => {
         // mine/?status=pending
-    const params = new URLSearchParams();
+        const params = new URLSearchParams();
 
-    if (filters.status) {
-        params.append("status", filters.status);
-    }
+        if (filters.status) {
+            params.append("status", filters.status);
+        }
 
-    if (filters.request_type) {
-        params.append("request_type", filters.request_type);
-    }
+        if (filters.request_type) {
+            params.append("request_type", filters.request_type);
+        }
 
-    if (filters.template) {
-        params.append("template", filters.template);
-    }
+        if (filters.template) {
+            params.append("template", filters.template);
+        }
 
-    const query = params.toString();
-    return query ? `?${query}` : "";
-};
+        const query = params.toString();
+        return query ? `?${query}` : "";
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -111,7 +121,7 @@ export default function WorkflowList() {
                 request.get(`/workflows/requests/mine/${query}`),
                 request.get(`/workflows/requests/pending/${query}`),
                 request.get(`/workflows/templates/`),
-            
+
             ]);
 
             if (mineResponse.status === "fulfilled") {
@@ -139,6 +149,7 @@ export default function WorkflowList() {
     };
 
     useEffect(() => {
+        fetchStats();
         fetchData();
     }, []);
 
@@ -473,73 +484,116 @@ export default function WorkflowList() {
                 </Col>
             </Row>
             <Card style={{ marginBottom: 16 }}>
-    <Space wrap>
-        <Select
-            allowClear
-            placeholder="状态"
-            style={{ width: 160 }}
-            value={filters.status || undefined}
-            options={[
-                { label: "草稿", value: "draft" },
-                { label: "待审批", value: "pending" },
-                { label: "已通过", value: "approved" },
-                { label: "已驳回", value: "rejected" },
-                { label: "已取消", value: "cancelled" },
-            ]}
-            onChange={(value) => setFilters((prev) => ({
-                ...prev,
-                status: value || "",
-            }))}
-        />
+                <Space wrap>
+                    <Select
+                        allowClear
+                        placeholder="状态"
+                        style={{ width: 160 }}
+                        value={filters.status || undefined}
+                        options={[
+                            { label: "草稿", value: "draft" },
+                            { label: "待审批", value: "pending" },
+                            { label: "已通过", value: "approved" },
+                            { label: "已驳回", value: "rejected" },
+                            { label: "已取消", value: "cancelled" },
+                        ]}
+                        onChange={(value) => setFilters((prev) => ({
+                            ...prev,
+                            status: value || "",
+                        }))}
+                    />
 
-        <Select
-            allowClear
-            placeholder="申请类型"
-            style={{ width: 160 }}
-            value={filters.request_type || undefined}
-            options={[
-                { label: "付款申请", value: "payment" },
-                { label: "通用申请", value: "general" },
-                { label: "AI 人工审核", value: "ai_review" },
-            ]}
-            onChange={(value) => setFilters((prev) => ({
-                ...prev,
-                request_type: value || "",
-            }))}
-        />
+                    <Select
+                        allowClear
+                        placeholder="申请类型"
+                        style={{ width: 160 }}
+                        value={filters.request_type || undefined}
+                        options={[
+                            { label: "付款申请", value: "payment" },
+                            { label: "通用申请", value: "general" },
+                            { label: "AI 人工审核", value: "ai_review" },
+                        ]}
+                        onChange={(value) => setFilters((prev) => ({
+                            ...prev,
+                            request_type: value || "",
+                        }))}
+                    />
 
-        <Select
-            allowClear
-            placeholder="流程模板"
-            style={{ width: 200 }}
-            value={filters.template || undefined}
-            options={templates.map((item) => ({
-                label: item.name,
-                value: String(item.id),
-            }))}
-            onChange={(value) => setFilters((prev) => ({
-                ...prev,
-                template: value || "",
-            }))}
-        />
+                    <Select
+                        allowClear
+                        placeholder="流程模板"
+                        style={{ width: 200 }}
+                        value={filters.template || undefined}
+                        options={templates.map((item) => ({
+                            label: item.name,
+                            value: String(item.id),
+                        }))}
+                        onChange={(value) => setFilters((prev) => ({
+                            ...prev,
+                            template: value || "",
+                        }))}
+                    />
 
-        <Button type="primary" onClick={fetchData}>
-            查询
-        </Button>
+                    <Button type="primary" onClick={() => {
+                        fetchData();
+                        fetchStats();
+                    }}>
+                        查询
+                    </Button>
 
-        <Button
-            onClick={() => {
-                setFilters({
-                    status: "",
-                    request_type: "",
-                    template: "",
-                });
-            }}
-        >
-            重置
-        </Button>
-    </Space>
-</Card>
+                    <Button
+                        onClick={() => {
+                            setFilters({
+                                status: "",
+                                request_type: "",
+                                template: "",
+                            });
+                        }}
+                    >
+                        重置
+                    </Button>
+                </Space>
+            </Card>
+            {stats && (
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col span={4}>
+                        <Card>
+                            <div>总申请</div>
+                            <h2>{stats.total}</h2>
+                        </Card>
+                    </Col>
+                    <Col span={4}>
+                        <Card>
+                            <div>待审批</div>
+                            <h2>{stats.pending}</h2>
+                        </Card>
+                    </Col>
+                    <Col span={4}>
+                        <Card>
+                            <div>已通过</div>
+                            <h2>{stats.approved}</h2>
+                        </Card>
+                    </Col>
+                    <Col span={4}>
+                        <Card>
+                            <div>已驳回</div>
+                            <h2>{stats.rejected}</h2>
+                        </Card>
+                    </Col>
+                    <Col span={4}>
+                        <Card>
+                            <div>付款总额</div>
+                            <h2>{stats.payment_total_amount}</h2>
+                        </Card>
+                    </Col>
+                    <Col span={4}>
+                        <Card>
+                            <div>平均审批秒数</div>
+                            <h2>{stats.avg_approval_seconds}</h2>
+                        </Card>
+                    </Col>
+                </Row>
+            )}
             <Tabs
                 items={[
                     {
