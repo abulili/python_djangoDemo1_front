@@ -62,7 +62,7 @@ const Stats = () => {
                 const response = await request.get(`/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
-                console.log('error',error)
+                console.log('error', error)
                 if (error.response?.status === 401) {
                     navigate("/");
                 } else message.error("加载统计数据失败");
@@ -285,6 +285,15 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             stream_failed: "流式失败",
 
             notify_feishu: "飞书通知",
+
+            agent_start: "Agent开始",
+            agent_memory_tool: "会话记忆",
+            agent_knowledge_tool: "知识检索",
+            agent_workflow_tool: "工作流查询",
+            agent_tools: "工具汇总",
+            agent_build_prompt: "构建提示词",
+            agent_done: "Agent完成",
+            agent_failed: "Agent失败",
         };
 
         return stepMap[step] || step;
@@ -575,7 +584,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                         <Button icon={<ReloadOutlined />} onClick={fetchLogs}>
                             刷新
                         </Button>
-                        <Button type="primary" danger  onClick={handleLogout}>
+                        <Button type="primary" danger onClick={handleLogout}>
                             退出登录
                         </Button>
                     </Space>

@@ -898,5 +898,151 @@ describe("LogList trace drawer", () => {
         expect(localStorage.getItem("refresh_token")).toBeNull();
     });
 
+    it("trace 展示 agent 工具编排步骤", async () => {
+    const traceId = "trace-agent-tools";
+
+    request.get.mockImplementation((url) => {
+        if (url === "/logs/stats/") {
+            return Promise.resolve({
+                data: {
+                    data: {
+                        total_calls: 1,
+                        success_calls: 1,
+                        failed_calls: 0,
+                        avg_duration: 1.2,
+                        total_tokens: 30,
+                        total_cost: 0.001,
+                    },
+                },
+            });
+        }
+
+        if (url === "/logs/observability-summary/") {
+            return Promise.resolve({
+                data: {
+                    data: {
+                        retry_count: 0,
+                        timeout_count: 0,
+                        recovered_count: 0,
+                        failed_step_count: 0,
+                    },
+                },
+            });
+        }
+
+        if (url === `/logs/trace/${traceId}/`) {
+            return Promise.resolve({
+                data: {
+                    data: {
+                        trace_id: traceId,
+                        summary: {
+                            status: "success",
+                            step_count: 7,
+                            failed_count: 0,
+                            total_duration: 1.2,
+                        },
+                        steps: [
+                            {
+                                step: "agent_start",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { top_k: 3, search_type: "hybrid" },
+                                created_at: "2026-09-22T10:00:00+08:00",
+                            },
+                            {
+                                step: "agent_memory_tool",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { message_count: 0, returned_count: 0 },
+                                created_at: "2026-09-22T10:00:01+08:00",
+                            },
+                            {
+                                step: "agent_knowledge_tool",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { search_type: "hybrid", hit_count: 1, chunk_ids: [1] },
+                                created_at: "2026-09-22T10:00:02+08:00",
+                            },
+                            {
+                                step: "agent_workflow_tool",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { my_request_count: 1, pending_approval_count: 1 },
+                                created_at: "2026-09-22T10:00:03+08:00",
+                            },
+                            {
+                                step: "agent_tools",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { tool_names: ["conversation_memory", "retrieve_knowledge", "workflow_summary"] },
+                                created_at: "2026-09-22T10:00:04+08:00",
+                            },
+                            {
+                                step: "agent_build_prompt",
+                                success: true,
+                                duration: 0,
+                                error_message: "",
+                                detail: { prompt_length: 500 },
+                                created_at: "2026-09-22T10:00:05+08:00",
+                            },
+                            {
+                                step: "agent_done",
+                                success: true,
+                                duration: 1.2,
+                                error_message: "",
+                                detail: { answer_length: 30 },
+                                created_at: "2026-09-22T10:00:06+08:00",
+                            },
+                        ],
+                    },
+                },
+            });
+        }
+
+        return Promise.resolve({
+            data: {
+                results: [
+                    {
+                        id: 1,
+                        prompt: "Agent 工具编排测试",
+                        response: "AI 回答",
+                        success: true,
+                        duration: 1.2,
+                        total_tokens: 30,
+                        cost: 0.001,
+                        trace_id: traceId,
+                        created_at: "2026-09-22T10:00:00+08:00",
+                    },
+                ],
+            },
+        });
+    });
+
+    render(
+        <MemoryRouter>
+            <LogList />
+        </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Agent 工具编排测试")).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByText(traceId));
+
+    expect(await screen.findByText("Agent开始")).toBeInTheDocument();
+    expect(await screen.findByText("会话记忆")).toBeInTheDocument();
+    expect(await screen.findByText("知识检索")).toBeInTheDocument();
+    expect(await screen.findByText("工作流查询")).toBeInTheDocument();
+    expect(await screen.findByText("工具汇总")).toBeInTheDocument();
+    expect(await screen.findByText("构建提示词")).toBeInTheDocument();
+    expect(await screen.findByText("Agent完成")).toBeInTheDocument();
+
+    expect(await screen.findByText("agent_knowledge_tool")).toBeInTheDocument();
+});
+
 });
 
