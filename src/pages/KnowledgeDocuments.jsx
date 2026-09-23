@@ -30,6 +30,7 @@ import {
     SearchOutlined,
 } from "@ant-design/icons";
 import request from "../utils/request";
+import { getLatestTraceId } from "../utils/trace";
 
 const { Header, Content } = Layout;
 const { TextArea } = Input;
@@ -55,11 +56,11 @@ const KnowledgeDocuments = () => {
 
     const [open, setOpen] = useState(false);
     const [form] = Form.useForm();
-     /**
-     * 等价于
-        const formList = Form.useForm();
-        const form = formList[0];
-     */
+    /**
+    * 等价于
+       const formList = Form.useForm();
+       const form = formList[0];
+    */
 
     const [chunkDrawerOpen, setChunkDrawerOpen] = useState(false);
     const [currentDocument, setCurrentDocument] = useState(null);
@@ -67,6 +68,8 @@ const KnowledgeDocuments = () => {
     const [agentForm] = Form.useForm();
     const [agentLoading, setAgentLoading] = useState(false);
     const [agentResult, setAgentResult] = useState(null);
+    const [agentTraceId, setAgentTraceId] = useState("");
+
 
     const fetchDocuments = async () => {
         try {
@@ -133,6 +136,7 @@ const KnowledgeDocuments = () => {
 
         try {
             setAgentLoading(true);
+            setAgentTraceId("");
 
             const response = await request.post("/knowledge-documents/agent-ask/", {
                 query: values.query,
@@ -143,6 +147,7 @@ const KnowledgeDocuments = () => {
             });
 
             setAgentResult(response.data.data);
+            setAgentTraceId(response.headers?.["x-trace-id"] || getLatestTraceId());
             message.success("Agent 问答完成");
         } catch (error) {
             message.error(error.response?.data?.message || "Agent 问答失败");
@@ -282,9 +287,18 @@ const KnowledgeDocuments = () => {
                                 items={[
                                     { key: "search_type", label: "检索模式", children: agentResult.search_type || "-" },
                                     { key: "conversation_id", label: "会话 ID", children: agentResult.conversation_id || "-" },
+                                    { key: "trace_id", label: "Trace ID", children: agentTraceId || "-" },
                                     { key: "idempotent", label: "幂等复用", children: agentResult.idempotent ? "是" : "否" },
                                 ]}
                             />
+                            {agentTraceId && (
+                                <Button
+                                    style={{ marginTop: 12 }}
+                                    onClick={() => navigate(`/logs?trace_id=${agentTraceId}`)}
+                                >
+                                    查看链路
+                                </Button>
+                            )}
 
                             <Title level={5} style={{ marginTop: 16 }}>
                                 工具调用

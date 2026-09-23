@@ -1,6 +1,6 @@
 ﻿import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 
 
@@ -49,23 +49,30 @@ vi.mock("@ant-design/icons", () => ({
 
 const renderPage = () => render(
     // 因为用了useNavigate，useNavigate必须在Router环境才能使用费
-            // 测试里不用真实浏览器地址栏，内存里模拟的路由环境
-            // 测组件本身：MemoryRouter
-            // 测路由跳转：MemoryRouter + Routes + Route
-            /***
-                 如果要访问 /knowledge-documents 时渲染这个页面 + 点击返回后跳到 /logs
-                 <MemoryRouter initialEntries={['/knowledge-documents']}>
-                      <Routes>
-                          <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
-                          <Route path="/logs" element={<div>日志页面</div>} />
-                      </Routes>
-                  </MemoryRouter>
-                 */
+    // 测试里不用真实浏览器地址栏，内存里模拟的路由环境
+    // 测组件本身：MemoryRouter
+    // 测路由跳转：MemoryRouter + Routes + Route
+    /***
+         如果要访问 /knowledge-documents 时渲染这个页面 + 点击返回后跳到 /logs
+         <MemoryRouter initialEntries={['/knowledge-documents']}>
+              <Routes>
+                  <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
+                  <Route path="/logs" element={<div>日志页面</div>} />
+              </Routes>
+          </MemoryRouter>
+         */
     <MemoryRouter>
         <KnowledgeDocuments />
     </MemoryRouter>
 );
-
+const renderPageWithRoutes = () => render(
+    <MemoryRouter initialEntries={["/knowledge-documents"]}>
+        <Routes>
+            <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
+            <Route path="/logs" element={<div>日志页面</div>} />
+        </Routes>
+    </MemoryRouter>
+);
 const newDocumentButtonName = /新增文档|新增文件|鏂板鏂囨。/;
 const saveButtonName = /保存|淇濆瓨/;
 const deleteButtonName = /删除|鍒犻櫎|鍒.*闄/;
@@ -133,7 +140,7 @@ describe("knowledgeDocuments", () => {
         });
 
         fireEvent.click(screen.getByRole("button", { name: newDocumentButtonName }));
-        
+
         const titleInput = await screen.findByLabelText(/文档标题/);
         const contentInput = await screen.findByLabelText(/文档内容/);
 
@@ -215,6 +222,9 @@ describe("knowledgeDocuments", () => {
         });
 
         request.post.mockResolvedValue({
+            headers: {
+                "x-trace-id": "trace-agent-001",
+            },
             data: {
                 data: {
                     query: "payment approval needed?",
@@ -258,7 +268,7 @@ describe("knowledgeDocuments", () => {
             },
         });
 
-        renderPage();
+        renderPageWithRoutes();
 
         await waitFor(() => {
             expect(request.get).toHaveBeenCalledWith("/knowledge-documents/");
@@ -288,6 +298,98 @@ describe("knowledgeDocuments", () => {
         expect(screen.getByText("Payment Approval Rule")).toBeInTheDocument();
         expect(screen.getByText("Payment requests over 5000 require approval workflow.")).toBeInTheDocument();
         expect(screen.getByText(/已向量化/)).toBeInTheDocument();
+        expect(await screen.findByText("trace-agent-001")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "查看链路" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "查看链路" }));
+
+        expect(await screen.findByText("日志页面")).toBeInTheDocument();
+    });
+    it("Agent 问答完成后可以点击 trace_id 跳转日志页", async () => {
+        request.get.mockResolvedValue({
+            data: {
+                results: [],
+            },
+        });
+
+        request.post.mockResolvedValue({
+            headers: {
+                "x-trace-id": "trace-agent-jump-001",
+            },
+            data: {
+                data: {
+                    query: "这笔付款申请要不要审批？",
+                    answer: "这笔付款申请需要审批。",
+                    conversation_id: "agent-jump-conversation",
+                    search_type: "hybrid",
+                    idempotent: false,
+                    tools: [
+                        {
+                            tool: "conversation_memory",
+                            description: "conversation memory tool",
+                            message_count: 0,
+                            messages: [],
+                        },
+                        {
+                            tool: "retrieve_knowledge",
+                            description: "knowledge retrieval tool",
+                            results: [],
+                        },
+                    ],
+                    references: [
+                        {
+                            id: 1,
+                            document_id: 1,
+                            document_title: "付款审批规则",
+                            chunk_index: 0,
+                            content: "付款申请超过 5000 元需要走审批流程。",
+                            score: 1,
+                            keyword_score: 1,
+                            vector_score: 0,
+                            has_embedding: true,
+                        },
+                    ],
+                },
+            },
+        });
+
+        render(
+            <MemoryRouter initialEntries={["/knowledge-documents"]}>
+                <Routes>
+                    <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
+                    <Route path="/logs" element={<div>日志页面</div>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledWith("/knowledge-documents/");
+        });
+
+        const questionInput = await screen.findByLabelText(questionLabel);
+        fireEvent.change(questionInput, {
+            target: {
+                value: "这笔付款申请要不要审批？",
+            },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: startAskButtonName }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith("/knowledge-documents/agent-ask/", {
+                query: "这笔付款申请要不要审批？",
+                top_k: 3,
+                search_type: "hybrid",
+                conversation_id: undefined,
+                request_id: expect.any(String),
+            });
+        });
+
+        expect(await screen.findByText("这笔付款申请需要审批。")).toBeInTheDocument();
+        expect(await screen.findByText("trace-agent-jump-001")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ }));
+
+        expect(await screen.findByText("日志页面")).toBeInTheDocument();
     });
 });
 

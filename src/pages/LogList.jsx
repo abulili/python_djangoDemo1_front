@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     Table,
     Button,
@@ -40,11 +40,8 @@ const { Title } = Typography;
 const Stats = () => {
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
-
-    const getToken = () => localStorage.getItem("access_token");
-
     const [observability, setObservability] = useState(null);
+    const navigate = useNavigate();
 
     const fetchObservability = async () => {
         try {
@@ -62,128 +59,77 @@ const Stats = () => {
                 const response = await request.get(`/logs/stats/`);
                 setStats(response.data.data);
             } catch (error) {
-                console.log('error', error)
                 if (error.response?.status === 401) {
                     navigate("/");
-                } else message.error("加载统计数据失败");
+                } else {
+                    message.error("加载统计数据失败");
+                }
             } finally {
                 setLoading(false);
             }
         };
+
         fetchStats();
         fetchObservability();
     }, [navigate]);
 
     if (loading) {
-        return (
-            <Spin description="加载中..." style={{ display: "block", marginTop: 100 }}></Spin>
-        );
+        return <Spin description="加载中..." style={{ display: "block", marginTop: 100 }} />;
     }
 
     return (
         <Layout>
-            {/* <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
-                    <h2>AI 调用统计</h2>
-                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志列表</Button>
-                    <Button icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
-                </div>
-            </Header> */}
             <Content>
                 <Row gutter={[16, 16]}>
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
-                            <Statistic
-                                title="总调用次数"
-                                value={stats?.total || 0}
-                                prefix={<RobotOutlined />}
-                            />
+                            <Statistic title="总调用次数" value={stats?.total || 0} prefix={<RobotOutlined />} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="今日调用" value={stats?.today_total || 0} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
-                            <Statistic
-                                title="成功率"
-                                value={stats?.success_rate || "0%"}
-                                prefix={<CheckCircleOutlined />}
-                            />
+                            <Statistic title="成功率" value={stats?.success_rate || "0%"} prefix={<CheckCircleOutlined />} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
-                            <Statistic
-                                title="平均耗时"
-                                value={stats?.avg_duration || 0}
-                                suffix="s"
-                                prefix={<ClockCircleOutlined />}
-                            />
+                            <Statistic title="平均耗时" value={stats?.avg_duration || 0} suffix="s" prefix={<ClockCircleOutlined />} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="总 Token" value={stats?.total_tokens || 0} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
                             <Statistic title="今日 Token" value={stats?.today_tokens || 0} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
-                            <Statistic
-                                title="总费用"
-                                value={stats?.total_cost || 0}
-                                prefix="￥"
-                                precision={2}
-                            />
+                            <Statistic title="总费用" value={stats?.total_cost || 0} prefix="￥" precision={2} />
                         </Card>
                     </Col>
-
                     <Col xs={24} sm={12} lg={6}>
                         <Card className="stat-card">
-                            <Statistic
-                                title="今日费用"
-                                value={stats?.today_cost || 0}
-                                prefix="￥"
-                                precision={2}
-                            />
+                            <Statistic title="今日费用" value={stats?.today_cost || 0} prefix="￥" precision={2} />
                         </Card>
                     </Col>
                 </Row>
+
                 <Row gutter={16} style={{ marginTop: 16 }}>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic title="重试次数" value={observability?.retry_count || 0} />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic title="超时任务" value={observability?.timeout_count || 0} />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic title="恢复查询" value={observability?.recovered_count || 0} />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic title="失败步骤" value={observability?.failed_step_count || 0} />
-                        </Card>
-                    </Col>
+                    <Col span={6}><Card><Statistic title="重试次数" value={observability?.retry_count || 0} /></Card></Col>
+                    <Col span={6}><Card><Statistic title="超时任务" value={observability?.timeout_count || 0} /></Card></Col>
+                    <Col span={6}><Card><Statistic title="恢复查询" value={observability?.recovered_count || 0} /></Card></Col>
+                    <Col span={6}><Card><Statistic title="失败步骤" value={observability?.failed_step_count || 0} /></Card></Col>
                 </Row>
+
                 <Card title="模型调用分布" size="small" style={{ marginTop: 16 }}>
                     <Table
                         size="small"
@@ -194,20 +140,13 @@ const Stats = () => {
                             { title: "模型", dataIndex: "model_name" },
                             { title: "调用次数", dataIndex: "total" },
                             { title: "成功次数", dataIndex: "success_count" },
-                            {
-                                title: "平均耗时",
-                                dataIndex: "avg_duration",
-                                render: (value) => `${value}s`,
-                            },
+                            { title: "平均耗时", dataIndex: "avg_duration", render: (value) => `${value}s` },
                             { title: "Token", dataIndex: "total_tokens" },
-                            {
-                                title: "费用",
-                                dataIndex: "total_cost",
-                                render: (value) => `￥${value}`,
-                            },
+                            { title: "费用", dataIndex: "total_cost", render: (value) => `￥${value}` },
                         ]}
                     />
                 </Card>
+
                 <Card title="近 7 天趋势" size="small" style={{ marginTop: 16 }}>
                     <Table
                         size="small"
@@ -219,11 +158,7 @@ const Stats = () => {
                             { title: "调用次数", dataIndex: "total" },
                             { title: "成功次数", dataIndex: "success_count" },
                             { title: "Token", dataIndex: "total_tokens" },
-                            {
-                                title: "费用",
-                                dataIndex: "total_cost",
-                                render: (value) => `￥${value}`,
-                            },
+                            { title: "费用", dataIndex: "total_cost", render: (value) => `￥${value}` },
                         ]}
                     />
                 </Card>
@@ -231,12 +166,14 @@ const Stats = () => {
         </Layout>
     );
 };
-
 const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+    
+    const [searchParams] = useSearchParams();
+    const traceIdFromUrl = searchParams.get("trace_id") || "";
 
     const [filters, setFilters] = useState({
         keyword: "",
@@ -271,21 +208,17 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             task_done: "任务完成",
             task_timeout: "任务超时",
             task_recovered: "任务恢复",
-
             retrieve_chunks: "知识库检索",
             build_prompt: "构建提示词",
             call_model: "调用模型",
             save_result: "保存结果",
             idempotent_hit: "幂等命中",
-
             stream_start: "流式开始",
             load_history: "加载上下文",
             build_messages: "构建消息",
             stream_done: "流式完成",
             stream_failed: "流式失败",
-
             notify_feishu: "飞书通知",
-
             agent_start: "Agent开始",
             agent_memory_tool: "会话记忆",
             agent_knowledge_tool: "知识检索",
@@ -294,20 +227,20 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             agent_build_prompt: "构建提示词",
             agent_done: "Agent完成",
             agent_failed: "Agent失败",
+            agent_idempotent_hit: "Agent幂等命中",
         };
 
         return stepMap[step] || step;
     };
-
     const fetchLogs = async (
         nextFilters = filters,
         page = pagination.current,
         pageSize = pagination.pageSize,
     ) => {
-        // 没传值默认传filters
+        // 娌′紶鍊奸粯璁や紶filters
         try {
             setLoading(true);
-            // Object.entries(filters) -把对象变成数组 过滤空值后再变回对象
+            // Object.entries(filters) -鎶婂璞″彉鎴愭暟缁?杩囨护绌哄€煎悗鍐嶅彉鍥炲璞?
             // const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value !== ''));
             const params = Object.fromEntries(
                 Object.entries(nextFilters).filter(([, value]) => value !== ""),
@@ -357,7 +290,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                 setTraceAutoRefresh(!isTraceFinished(nextTraceDetail));
             }
         } catch (error) {
-            message.error("加载 trace 详情失败");
+            message.error("鍔犺浇 trace 璇︽儏澶辫触");
         } finally {
             setTraceLoading(false);
         }
@@ -367,7 +300,17 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
         const steps = detail?.steps || detail?.rag_steps || [];
 
         if (steps.some((step) =>
-            ["task_done", "task_failed", "stream_done", "task_timeout", "stream_failed"].includes(step.step)
+            [
+                "task_done",
+                "task_failed",
+                "stream_done",
+                "task_timeout",
+                "stream_failed",
+                "rag_done",
+                "rag_no_hit",
+                "agent_done",
+                "agent_failed",
+            ].includes(step.step)
         )) {
             return true;
         }
@@ -386,7 +329,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             traceAutoRefreshCountRef.current += 1;
 
             if (traceAutoRefreshCountRef.current > 20) {
-                // React 会重新渲染，useEffect 的清理函数会执行 clearInterval(timer)
+                // React 重新渲染时，useEffect 的清理函数会执行 clearInterval(timer)
                 setTraceAutoRefresh(false);
                 message.warning("自动刷新已达到上限");
                 return;
@@ -399,10 +342,29 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
     }, [traceDrawerOpen, traceAutoRefresh, currentTraceId, traceRefreshIntervalMs]);
 
     useEffect(() => {
-        fetchLogs();
-    }, [navigate]);
+        if (traceIdFromUrl) {
+            const nextFilters = {
+                keyword: "",
+                model_name: "",
+                success: "",
+                conversation_id: "",
+                trace_id: traceIdFromUrl,
+            };
 
-    // 上面的重置只是清空状态，不一定立即刷新，因为 React setState 是异步的。 简单做法：加一个函数。
+            setFilters(nextFilters);
+            fetchLogs(nextFilters, 1, 10);
+            openTraceDetail(traceIdFromUrl, {
+                resetFilter: true,
+                autoRefreshByStatus: true,
+            });
+            return;
+        }
+
+
+        fetchLogs();
+    }, [navigate, traceIdFromUrl]);
+
+    // 上面的重置只是清空状态，不一定立即刷新，因为 React setState 是异步的。简单做法：加一个函数。
     const resetFilters = () => {
         const emptyFilters = {
             keyword: "",
@@ -425,7 +387,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                     第 {detail.retry_count} 次重试，最多 {detail.max_retries} 次，
                     {detail.countdown ? `等待 ${detail.countdown} 秒后重试` : "准备重试"}
                 </div>
-            )
+            );
         }
 
         if (step.step === "task_failed") {
@@ -444,8 +406,8 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             );
         }
 
-        return null
-    }
+        return null;
+    };
 
     const renderStepDetail = (value) => {
         const detail = value || {};
@@ -480,7 +442,6 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             </div>
         );
     };
-
     const columns = [
         { title: "ID", dataIndex: "id", width: 60 },
         { title: "用户输入", dataIndex: "prompt", ellipsis: true },
@@ -558,16 +519,16 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                     }}
                 >
                     <Title level={3} style={{ margin: 0 }}>
-                        AI 调用日志{" "}
+                        AI 璋冪敤鏃ュ織{" "}
                     </Title>
                     <Space>
-                        {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
+                        {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>缁熻</Button> */}
                         <Button
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => navigate("/chat")}
                         >
-                            发起对话
+                            鍙戣捣瀵硅瘽
                         </Button>
                         <Button
                             icon={<FileTextOutlined />}
@@ -598,11 +559,11 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                             allowClear
                             placeholder="关键词"
                             value={filters.keyword}
-                            onChange={(e) =>
-                                setFilters({ ...filters, keyword: e.target.value })
+                            onChange={(event) =>
+                                setFilters((prev) => ({ ...prev, keyword: event.target.value }))
                             }
                             style={{ width: 200 }}
-                        ></Input>
+                        />
                         <Input
                             allowClear
                             placeholder="会话ID"
@@ -659,11 +620,9 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                         >
                             查询
                         </Button>
-
                         <Button onClick={resetFilters}>重置</Button>
                     </Space>
-                </Card>
-                <Spin spinning={loading}>
+                </Card>                <Spin spinning={loading}>
                     <Table
                         columns={columns}
                         dataSource={logs}
@@ -701,8 +660,8 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
                             <Switch
                                 checked={traceAutoRefresh}
                                 onChange={setTraceAutoRefresh}
-                                checkedChildren="自动刷新"
-                                unCheckedChildren="手动刷新"
+                                checkedChildren="鑷姩刷新"
+                                unCheckedChildren="鎵嬪姩刷新"
                             />
                         </Space>
                     }
@@ -876,3 +835,9 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
 };
 
 export default LogList;
+
+
+
+
+
+
