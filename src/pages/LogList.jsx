@@ -171,7 +171,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
-    
+
     const [searchParams] = useSearchParams();
     const traceIdFromUrl = searchParams.get("trace_id") || "";
 
@@ -228,6 +228,14 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             agent_done: "Agent完成",
             agent_failed: "Agent失败",
             agent_idempotent_hit: "Agent幂等命中",
+            langchain_agent_start: "LangChain开始",
+            langchain_tool_memory: "LangChain记忆工具",
+            langchain_tool_retriever: "LangChain检索工具",
+            langchain_tool_workflow: "LangChain工作流工具",
+            langchain_prompt_build: "LangChain构建提示词",
+            langchain_agent_done: "LangChain完成",
+            langchain_agent_failed: "LangChain失败",
+            langchain_agent_idempotent_hit: "LangChain幂等命中",
         };
 
         return stepMap[step] || step;

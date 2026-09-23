@@ -138,7 +138,12 @@ const KnowledgeDocuments = () => {
             setAgentLoading(true);
             setAgentTraceId("");
 
-            const response = await request.post("/knowledge-documents/agent-ask/", {
+            const askUrl =
+                values.agent_type === "langchain"
+                    ? "/knowledge-documents/langchain-agent-ask/"
+                    : "/knowledge-documents/agent-ask/";
+
+            const response = await request.post(askUrl, {
                 query: values.query,
                 top_k: values.top_k || 3,
                 search_type: values.search_type || "hybrid",
@@ -232,6 +237,7 @@ const KnowledgeDocuments = () => {
                         form={agentForm}
                         layout="vertical"
                         initialValues={{
+                            agent_type: "native",
                             search_type: "hybrid",
                             top_k: 3,
                         }}
@@ -245,6 +251,15 @@ const KnowledgeDocuments = () => {
                         </Form.Item>
 
                         <Space align="start" wrap>
+                            <Form.Item name="agent_type" label="Agent 模式">
+                                <Select
+                                    style={{ width: 180 }}
+                                    options={[
+                                        { label: "原生 Agent", value: "native" },
+                                        { label: "LangChain Agent", value: "langchain" },
+                                    ]}
+                                />
+                            </Form.Item>
                             <Form.Item name="search_type" label="检索模式">
                                 <Select style={{ width: 160 }} options={searchTypeOptions} />
                             </Form.Item>
@@ -285,6 +300,11 @@ const KnowledgeDocuments = () => {
                                 column={3}
                                 style={{ marginTop: 16 }}
                                 items={[
+                                    {
+                                        key: "framework",
+                                        label: "编排框架",
+                                        children: agentResult.framework || "native-agent",
+                                    },
                                     { key: "search_type", label: "检索模式", children: agentResult.search_type || "-" },
                                     { key: "conversation_id", label: "会话 ID", children: agentResult.conversation_id || "-" },
                                     { key: "trace_id", label: "Trace ID", children: agentTraceId || "-" },

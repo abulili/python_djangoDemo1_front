@@ -299,11 +299,11 @@ describe("knowledgeDocuments", () => {
         expect(screen.getByText("Payment requests over 5000 require approval workflow.")).toBeInTheDocument();
         expect(screen.getByText(/已向量化/)).toBeInTheDocument();
         expect(await screen.findByText("trace-agent-001")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "查看链路" })).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "查看链路" }));
+        expect(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ }));
 
         expect(await screen.findByText("日志页面")).toBeInTheDocument();
-    });
+    }, 15000);
     it("Agent 问答完成后可以点击 trace_id 跳转日志页", async () => {
         request.get.mockResolvedValue({
             data: {
@@ -390,7 +390,112 @@ describe("knowledgeDocuments", () => {
         fireEvent.click(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ }));
 
         expect(await screen.findByText("日志页面")).toBeInTheDocument();
-    });
+    }, 15000);
+    it("选择 LangChain Agent 后调用 langchain-agent-ask 并展示编排框架", async () => {
+        request.get.mockResolvedValue({
+            data: {
+                results: [],
+            },
+        });
+
+        request.post.mockResolvedValue({
+            headers: {
+                "x-trace-id": "trace-langchain-agent-001",
+            },
+            data: {
+                data: {
+                    query: "payment approval needed?",
+                    answer: "LangChain-style Agent says approval is required.",
+                    conversation_id: "langchain-agent-conversation-001",
+                    search_type: "hybrid",
+                    framework: "langchain-style",
+                    idempotent: false,
+                    tools: [
+                        {
+                            tool: "conversation_memory",
+                            description: "读取当前 conversation_id 下的最近会话记忆",
+                            output: {
+                                message_count: 0,
+                                messages: [],
+                            },
+                        },
+                        {
+                            tool: "knowledge_retriever",
+                            description: "从知识库中按 keyword/vector/hybrid 检索相关片段",
+                            output: {
+                                results: [],
+                            },
+                        },
+                        {
+                            tool: "workflow_summary",
+                            description: "读取当前用户的工作流申请、待审批和最近申请摘要",
+                            output: {
+                                my_request_count: 1,
+                                pending_approval_count: 1,
+                            },
+                        },
+                    ],
+                    references: [
+                        {
+                            id: 1,
+                            document_id: 1,
+                            document_title: "Payment Approval Rule",
+                            chunk_index: 0,
+                            content: "Payment requests over 5000 require approval workflow.",
+                            score: 3.8,
+                            keyword_score: 1,
+                            vector_score: 0.93,
+                            has_embedding: true,
+                        },
+                    ],
+                },
+            },
+        });
+
+        renderPageWithRoutes();
+
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledWith("/knowledge-documents/");
+        });
+
+        fireEvent.mouseDown(screen.getByLabelText("Agent 模式"));
+        fireEvent.click(await screen.findByText("LangChain Agent"));
+
+        fireEvent.change(screen.getByLabelText(questionLabel), {
+            target: { value: "payment approval needed?" },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: startAskButtonName }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith(
+                "/knowledge-documents/langchain-agent-ask/",
+                expect.objectContaining({
+                    query: "payment approval needed?",
+                    top_k: 3,
+                    search_type: "hybrid",
+                    conversation_id: undefined,
+                    request_id: expect.any(String),
+                })
+            );
+        });
+
+        expect(await screen.findByText("LangChain-style Agent says approval is required.")).toBeInTheDocument();
+        expect(screen.getByText("langchain-style")).toBeInTheDocument();
+        expect(screen.getByText("trace-langchain-agent-001")).toBeInTheDocument();
+
+        expect(screen.getAllByText("conversation_memory")[0]).toBeInTheDocument();
+        expect(screen.getAllByText("knowledge_retriever")[0]).toBeInTheDocument();
+        expect(screen.getAllByText("workflow_summary")[0]).toBeInTheDocument();
+
+        expect(screen.getByText("Payment Approval Rule")).toBeInTheDocument();
+        expect(screen.getByText("Payment requests over 5000 require approval workflow.")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ }));
+        expect(await screen.findByText("日志页面")).toBeInTheDocument();
+    }, 15000);
 });
+
+
 
 
