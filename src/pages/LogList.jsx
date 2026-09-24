@@ -237,6 +237,16 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             langchain_agent_failed: "LangChain失败",
             langchain_agent_idempotent_hit: "LangChain幂等命中",
             langchain_business_prompt: "LangChain业务模板",
+            multi_agent_start: "Multi-Agent开始",
+            multi_agent_key_router: "关键词路由",
+            multi_agent_jev_router: "JEV路由",
+            multi_agent_supervisor: "Supervisor路由",
+            multi_agent_parallel_context_done: "并行上下文完成",
+            multi_agent_memory: "会话记忆Agent",
+            multi_agent_retriever: "知识检索Agent",
+            multi_agent_workflow: "工作流Agent",
+            multi_agent_done: "Multi-Agent完成",
+            multi_agent_failed: "Multi-Agent失败",
         };
 
         return stepMap[step] || step;

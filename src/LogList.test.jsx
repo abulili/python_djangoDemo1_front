@@ -353,20 +353,21 @@ describe("LogList trace drawer", () => {
             traceId,
             prompt: "LangChain Agent 工具编排测试",
             steps: [
-            {
-  step: "langchain_business_prompt",
-  detail: {
-    template_name: "payment_judge",
-    template_used: true,
-    business_prompt_length: 20,
-  },
-},
+                {
+                    step: "langchain_business_prompt",
+                    detail: {
+                        template_name: "payment_judge",
+                        template_used: true,
+                        business_prompt_length: 20,
+                    },
+                },
                 { step: "langchain_agent_start", detail: { framework: "langchain-style" } },
                 { step: "langchain_tool_memory", detail: { message_count: 0, returned_count: 0 } },
                 { step: "langchain_tool_retriever", detail: { search_type: "hybrid", hit_count: 1 } },
                 { step: "langchain_tool_workflow", detail: { my_request_count: 1 } },
                 { step: "langchain_prompt_build", detail: { prompt_length: 500 } },
                 { step: "langchain_agent_done", detail: { answer_length: 30 } },
+
             ],
         });
 
@@ -390,6 +391,68 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText("LangChain业务模板")).toBeInTheDocument();
         expect(screen.getByText("LangChain构建提示词")).toBeInTheDocument();
         expect(screen.getByText("LangChain完成")).toBeInTheDocument();
+    });
+    it("trace 展示 Multi-Agent Supervisor 调度步骤", async () => {
+        const traceId = "trace-multi-agent-supervisor";
+
+        mockLogListApis({
+            traceId,
+            prompt: "Multi-Agent Supervisor 测试",
+            steps: [
+                {
+                    step: "multi_agent_start",
+                    detail: {
+                        router_type: "supervisor",
+                        selected_agents: ["memory", "retriever", "workflow", "answer"],
+                    },
+                },
+                {
+                    step: "multi_agent_supervisor",
+                    detail: {
+                        router_type: "supervisor",
+                        selected_agents: ["memory", "retriever", "workflow", "answer"],
+                        reason: "需要知识库和工作流判断付款审批。",
+                        usage: {
+                            total_tokens: 20,
+                        },
+                    },
+                },
+                {
+                    step: "multi_agent_parallel_context_done",
+                    detail: {
+                        parallel_agents: ["memory", "retriever", "workflow"],
+                        parallel_agent_count: 3,
+                    },
+                },
+                { step: "multi_agent_memory", detail: { message_count: 0 } },
+                { step: "multi_agent_retriever", detail: { hit_count: 1 } },
+                { step: "multi_agent_workflow", detail: { pending_approval_count: 1 } },
+                {
+                    step: "multi_agent_done",
+                    detail: {
+                        selected_agents: ["memory", "retriever", "workflow", "answer"],
+                        router_type: "supervisor",
+                    },
+                },
+            ],
+        });
+
+        render(
+            <MemoryRouter>
+                <LogList />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("Multi-Agent Supervisor 测试")).toBeInTheDocument();
+        fireEvent.click(await screen.findByTestId(`trace-link-${traceId}`));
+
+        expect(await screen.findByText("Multi-Agent开始")).toBeInTheDocument();
+        expect(screen.getByText("Supervisor路由")).toBeInTheDocument();
+        expect(screen.getByText("并行上下文完成")).toBeInTheDocument();
+        expect(screen.getByText("会话记忆Agent")).toBeInTheDocument();
+        expect(screen.getByText("知识检索Agent")).toBeInTheDocument();
+        expect(screen.getByText("工作流Agent")).toBeInTheDocument();
+        expect(screen.getByText("Multi-Agent完成")).toBeInTheDocument();
     });
 });
 

@@ -161,7 +161,11 @@ describe("knowledgeDocuments", () => {
         });
 
         await waitFor(() => {
-            expect(request.get).toHaveBeenCalledTimes(2);
+            const documentGetCalls = request.get.mock.calls.filter(
+                ([url]) => url === "/knowledge-documents/"
+            );
+
+            expect(documentGetCalls).toHaveLength(2);
         });
     });
 
@@ -199,8 +203,13 @@ describe("knowledgeDocuments", () => {
             expect(request.delete).toHaveBeenCalledWith("/knowledge-documents/1/");
         });
 
+        // 现在 request.get 不只用于知识库文档，还用于 Prompt 模板，所以测试不能再按总次数断言，要按 URL 过滤。
         await waitFor(() => {
-            expect(request.get).toHaveBeenCalledTimes(2);
+            const documentGetCalls = request.get.mock.calls.filter(
+                ([url]) => url === "/knowledge-documents/"
+            );
+
+            expect(documentGetCalls).toHaveLength(2);
         });
     });
 
@@ -493,6 +502,74 @@ describe("knowledgeDocuments", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /查看链路|鏌ョ湅閾捐矾/ }));
         expect(await screen.findByText("日志页面")).toBeInTheDocument();
+    }, 15000);
+    it("选择 Multi-Agent Supervisor 后调用 multi-agent-ask 并展示路由结果", async () => {
+        request.get.mockResolvedValue({
+            data: {
+                results: [],
+            },
+        });
+
+        request.post.mockResolvedValue({
+            headers: {
+                "x-trace-id": "trace-multi-agent-supervisor-001",
+            },
+            data: {
+                data: {
+                    query: "payment approval needed?",
+                    answer: "Supervisor MultiAgent says approval is required.",
+                    conversation_id: "multi-agent-conversation-001",
+                    search_type: "hybrid",
+                    framework: "multi-agent-router",
+                    router_type: "supervisor",
+                    agents: ["memory", "retriever", "workflow", "answer"],
+                    supervisor_reason: "需要知识库和工作流判断付款审批。",
+                    supervisor_usage: {
+                        total_tokens: 20,
+                    },
+                    references: [],
+                },
+            },
+        });
+
+        renderPageWithRoutes();
+
+        await waitFor(() => {
+            expect(request.get).toHaveBeenCalledWith("/knowledge-documents/");
+        });
+
+        fireEvent.mouseDown(screen.getByLabelText("Agent 模式"));
+        fireEvent.click(await screen.findByText("Multi-Agent"));
+
+        fireEvent.mouseDown(screen.getByLabelText("路由方式"));
+        fireEvent.click(await screen.findByText("Supervisor 路由"));
+
+        fireEvent.change(screen.getByLabelText(questionLabel), {
+            target: { value: "payment approval needed?" },
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: startAskButtonName }));
+
+        await waitFor(() => {
+            expect(request.post).toHaveBeenCalledWith(
+                "/knowledge-documents/multi-agent-ask/",
+                expect.objectContaining({
+                    query: "payment approval needed?",
+                    top_k: 3,
+                    search_type: "hybrid",
+                    conversation_id: undefined,
+                    request_id: expect.any(String),
+                    router_type: "supervisor",
+                })
+            );
+        });
+
+        expect(await screen.findByText("Supervisor MultiAgent says approval is required.")).toBeInTheDocument();
+        expect(screen.getByText("multi-agent-router")).toBeInTheDocument();
+        expect(screen.getByText("supervisor")).toBeInTheDocument();
+        expect(screen.getByText("memory / retriever / workflow / answer")).toBeInTheDocument();
+        expect(screen.getByText("需要知识库和工作流判断付款审批。")).toBeInTheDocument();
+        expect(screen.getByText("trace-multi-agent-supervisor-001")).toBeInTheDocument();
     }, 15000);
 });
 

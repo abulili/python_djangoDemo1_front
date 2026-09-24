@@ -75,8 +75,12 @@ const KnowledgeDocuments = () => {
 
 
     const fetchPromptTemplates = async () => {
-        const res = await request.get("/prompt-templates/");
-        setPromptTemplates(res.data.results || res.data || []);
+        try {
+            const res = await request.get("/prompt-templates/");
+            setPromptTemplates(res.data.results || res.data || []);
+        } catch (error) {
+            setPromptTemplates([]);
+        }
     };
 
     const fetchDocuments = async () => {
@@ -147,18 +151,27 @@ const KnowledgeDocuments = () => {
             setAgentLoading(true);
             setAgentTraceId("");
 
-            const askUrl =
-                values.agent_type === "langchain"
-                    ? "/knowledge-documents/langchain-agent-ask/"
-                    : "/knowledge-documents/agent-ask/";
+            let askUrl = "/knowledge-documents/agent-ask/";
 
-            const response = await request.post(askUrl, {
+            if (values.agent_type === "langchain") {
+                askUrl = "/knowledge-documents/langchain-agent-ask/";
+            }
+
+            if (values.agent_type === "multi_agent") {
+                askUrl = "/knowledge-documents/multi-agent-ask/";
+            }
+            const payload = {
                 query: values.query,
                 top_k: values.top_k || 3,
                 search_type: values.search_type || "hybrid",
                 conversation_id: values.conversation_id || undefined,
                 request_id: createRequestId(),
-            });
+            };
+            if (values.agent_type === "multi_agent") {
+                payload.router_type = values.router_type || "rule";
+            }
+
+            const response = await request.post(askUrl, payload);
 
             setAgentResult(response.data.data);
             setAgentTraceId(response.headers?.["x-trace-id"] || getLatestTraceId());
@@ -169,6 +182,11 @@ const KnowledgeDocuments = () => {
             setAgentLoading(false);
         }
     };
+
+    const displayedTools = agentResult?.tools || (agentResult?.agents || []).map((name) => ({
+        tool: name,
+        description: `Multi-Agent 调用了 ${name} agent`,
+    }));
 
     const columns = [
         {
@@ -248,6 +266,7 @@ const KnowledgeDocuments = () => {
                         initialValues={{
                             agent_type: "native",
                             search_type: "hybrid",
+                            router_type: "rule",
                             top_k: 3,
                         }}
                     >
@@ -266,8 +285,29 @@ const KnowledgeDocuments = () => {
                                     options={[
                                         { label: "原生 Agent", value: "native" },
                                         { label: "LangChain Agent", value: "langchain" },
+                                        { label: "Multi-Agent", value: "multi_agent" },
                                     ]}
                                 />
+                            </Form.Item>
+                            <Form.Item
+                                noStyle
+                                shouldUpdate={(prev, cur) => prev.agent_type !== cur.agent_type}
+                            >
+                                {({ getFieldValue }) =>
+                                    getFieldValue("agent_type") === "multi_agent" ? (
+                                        <Form.Item name="router_type" label="路由方式">
+                                            <Select
+                                                style={{ width: 180 }}
+                                                options={[
+                                                    { label: "规则路由", value: "rule" },
+                                                    { label: "关键词路由", value: "key" },
+                                                    { label: "JEV 路由", value: "jev" },
+                                                    { label: "Supervisor 路由", value: "supervisor" },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                    ) : null
+                                }
                             </Form.Item>
                             <Form.Item name="search_type" label="检索模式">
                                 <Select style={{ width: 160 }} options={searchTypeOptions} />
@@ -333,6 +373,26 @@ const KnowledgeDocuments = () => {
                                         label: "编排框架",
                                         children: agentResult.framework || "native-agent",
                                     },
+                                    {
+                                        key: "router_type",
+                                        label: "路由方式",
+                                        children: agentResult.router_type || "-",
+                                    },
+                                    {
+                                        key: "agents",
+                                        label: "调用 Agent",
+                                        children: (agentResult.agents || []).join(" / ") || "-",
+                                    },
+                                    {
+                                        key: "supervisor_reason",
+                                        label: "Supervisor 理由",
+                                        children: agentResult.supervisor_reason || "-",
+                                    },
+                                    {
+                                        key: "jev_usage",
+                                        label: "JEV Tokens",
+                                        children: agentResult.jev_usage?.total_tokens || "-",
+                                    },
                                     { key: "search_type", label: "检索模式", children: agentResult.search_type || "-" },
                                     { key: "conversation_id", label: "会话 ID", children: agentResult.conversation_id || "-" },
                                     { key: "trace_id", label: "Trace ID", children: agentTraceId || "-" },
@@ -353,7 +413,7 @@ const KnowledgeDocuments = () => {
                             </Title>
                             <List
                                 bordered
-                                dataSource={agentResult.tools || []}
+                                dataSource={displayedTools}
                                 renderItem={(tool) => (
                                     <List.Item>
                                         <Space direction="vertical" style={{ width: "100%" }}>
@@ -394,6 +454,24 @@ const KnowledgeDocuments = () => {
                                     </List.Item>
                                 )}
                             />
+
+                            {agentResult.router_type && (
+                                <>
+                                    <Title level={5} style={{ marginTop: 16 }}>
+                                        路由详情
+                                    </Title>
+                                    <pre style={{ background: "#f6f8fa", padding: 12, borderRadius: 6 }}>
+                                        {JSON.stringify({
+                                            router_type: agentResult.router_type,
+                                            key_evaluation: agentResult.key_evaluation,
+                                            jev_evaluation: agentResult.jev_evaluation,
+                                            jev_usage: agentResult.jev_usage,
+                                            supervisor_reason: agentResult.supervisor_reason,
+                                            supervisor_usage: agentResult.supervisor_usage,
+                                        }, null, 2)}
+                                    </pre>
+                                </>
+                            )}
                         </div>
                     )}
                 </Card>
