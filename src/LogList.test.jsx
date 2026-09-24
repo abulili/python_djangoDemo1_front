@@ -353,6 +353,14 @@ describe("LogList trace drawer", () => {
             traceId,
             prompt: "LangChain Agent 工具编排测试",
             steps: [
+            {
+  step: "langchain_business_prompt",
+  detail: {
+    template_name: "payment_judge",
+    template_used: true,
+    business_prompt_length: 20,
+  },
+},
                 { step: "langchain_agent_start", detail: { framework: "langchain-style" } },
                 { step: "langchain_tool_memory", detail: { message_count: 0, returned_count: 0 } },
                 { step: "langchain_tool_retriever", detail: { search_type: "hybrid", hit_count: 1 } },
@@ -379,6 +387,7 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText("LangChain记忆工具")).toBeInTheDocument();
         expect(screen.getByText("LangChain检索工具")).toBeInTheDocument();
         expect(screen.getByText("LangChain工作流工具")).toBeInTheDocument();
+        expect(screen.getByText("LangChain业务模板")).toBeInTheDocument();
         expect(screen.getByText("LangChain构建提示词")).toBeInTheDocument();
         expect(screen.getByText("LangChain完成")).toBeInTheDocument();
     });

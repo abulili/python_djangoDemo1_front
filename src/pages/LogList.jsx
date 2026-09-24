@@ -236,6 +236,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             langchain_agent_done: "LangChain完成",
             langchain_agent_failed: "LangChain失败",
             langchain_agent_idempotent_hit: "LangChain幂等命中",
+            langchain_business_prompt: "LangChain业务模板",
         };
 
         return stepMap[step] || step;

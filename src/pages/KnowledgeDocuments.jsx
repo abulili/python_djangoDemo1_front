@@ -70,6 +70,14 @@ const KnowledgeDocuments = () => {
     const [agentResult, setAgentResult] = useState(null);
     const [agentTraceId, setAgentTraceId] = useState("");
 
+    const [promptTemplates, setPromptTemplates] = useState([]);
+    const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+
+    const fetchPromptTemplates = async () => {
+        const res = await request.get("/prompt-templates/");
+        setPromptTemplates(res.data.results || res.data || []);
+    };
 
     const fetchDocuments = async () => {
         try {
@@ -86,6 +94,7 @@ const KnowledgeDocuments = () => {
 
     useEffect(() => {
         fetchDocuments();
+        fetchPromptTemplates();
     }, []);
 
     const openCreate = () => {
@@ -271,6 +280,25 @@ const KnowledgeDocuments = () => {
                             <Form.Item name="conversation_id" label="会话 ID">
                                 <Input style={{ width: 280 }} placeholder="可选，不填由后端生成" />
                             </Form.Item>
+                            <Form.Item name="template_name" label="业务模板">
+                                <Select
+                                    allowClear
+                                    placeholder="可选：选择业务 Prompt 模板"
+                                    options={promptTemplates.map((item) => ({
+                                        label: item.name,
+                                        value: item.name,
+                                    }))}
+                                    onChange={(name) => {
+                                        const template = promptTemplates.find((item) => item.name === name);
+                                        setSelectedTemplate(template || null);
+                                    }}
+                                />
+                            </Form.Item>
+                            {selectedTemplate?.variables?.map((name) => (
+                                <Form.Item key={name} name={["template_vars", name]} label={name}>
+                                    <Input placeholder={`请输入 ${name}`} />
+                                </Form.Item>
+                            ))}
 
                             <Form.Item label=" ">
                                 <Button
