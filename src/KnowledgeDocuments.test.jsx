@@ -523,6 +523,7 @@ describe("knowledgeDocuments", () => {
                     framework: "multi-agent-router",
                     router_type: "supervisor",
                     agents: ["memory", "retriever", "workflow", "answer"],
+                    enabled_agents: ["memory", "retriever", "workflow"],
                     supervisor_reason: "需要知识库和工作流判断付款审批。",
                     supervisor_usage: {
                         total_tokens: 20,
@@ -568,6 +569,7 @@ describe("knowledgeDocuments", () => {
                     conversation_id: undefined,
                     request_id: expect.any(String),
                     router_type: "supervisor",
+                    enabled_agents: ["memory", "retriever", "workflow"],
                 })
             );
         });
@@ -576,14 +578,10 @@ describe("knowledgeDocuments", () => {
         expect(screen.getByText("multi-agent-router")).toBeInTheDocument();
         expect(screen.getByText("supervisor")).toBeInTheDocument();
         expect(screen.getByText("memory / retriever / workflow / answer")).toBeInTheDocument();
+        expect(screen.getByText("memory / retriever / workflow")).toBeInTheDocument();
         expect(screen.getByText("需要知识库和工作流判断付款审批。")).toBeInTheDocument();
         expect(screen.getAllByText("50").length).toBeGreaterThan(0);
         expect(screen.getByText("0.0012")).toBeInTheDocument();
         expect(screen.getByText("trace-multi-agent-supervisor-001")).toBeInTheDocument();
     }, 15000);
 });
-
-
-
-
-

@@ -4,6 +4,7 @@ import {
     Alert,
     Button,
     Card,
+    Checkbox,
     Descriptions,
     Drawer,
     Form,
@@ -169,6 +170,7 @@ const KnowledgeDocuments = () => {
             };
             if (values.agent_type === "multi_agent") {
                 payload.router_type = values.router_type || "rule";
+                payload.enabled_agents = values.enabled_agents || ["memory", "retriever", "workflow"];
             }
 
             const response = await request.post(askUrl, payload);
@@ -267,6 +269,7 @@ const KnowledgeDocuments = () => {
                             agent_type: "native",
                             search_type: "hybrid",
                             router_type: "rule",
+                            enabled_agents: ["memory", "retriever", "workflow"],
                             top_k: 3,
                         }}
                     >
@@ -340,6 +343,26 @@ const KnowledgeDocuments = () => {
                                 </Form.Item>
                             ))}
 
+
+                            <Form.Item
+                                noStyle
+                                shouldUpdate={(prev, cur) => prev.agent_type !== cur.agent_type}
+                            >
+                                {({ getFieldValue }) =>
+                                    getFieldValue("agent_type") === "multi_agent" ? (
+                                        <Form.Item name="enabled_agents" label="启用 Agent">
+                                            <Checkbox.Group
+                                                options={[
+                                                    { label: "会话记忆", value: "memory" },
+                                                    { label: "知识检索", value: "retriever" },
+                                                    { label: "工作流", value: "workflow" },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                    ) : null
+                                }
+                            </Form.Item>
+
                             <Form.Item label=" ">
                                 <Button
                                     type="primary"
@@ -382,6 +405,11 @@ const KnowledgeDocuments = () => {
                                         key: "agents",
                                         label: "调用 Agent",
                                         children: (agentResult.agents || []).join(" / ") || "-",
+                                    },
+                                    {
+                                        key: "enabled_agents",
+                                        label: "启用 Agent",
+                                        children: (agentResult.enabled_agents || []).join(" / ") || "-",
                                     },
                                     {
                                         key: "supervisor_reason",
