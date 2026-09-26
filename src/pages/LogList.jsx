@@ -247,6 +247,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             multi_agent_workflow: "工作流Agent",
             multi_agent_done: "Multi-Agent完成",
             multi_agent_failed: "Multi-Agent失败",
+            multi_agent_answer_prompt_build: "AnswerAgent构建提示词",
         };
 
         return stepMap[step] || step;

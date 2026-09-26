@@ -397,6 +397,16 @@ const KnowledgeDocuments = () => {
                                     { key: "conversation_id", label: "会话 ID", children: agentResult.conversation_id || "-" },
                                     { key: "trace_id", label: "Trace ID", children: agentTraceId || "-" },
                                     { key: "idempotent", label: "幂等复用", children: agentResult.idempotent ? "是" : "否" },
+                                    {
+                                        key: "usage_summary",
+                                        label: "总 Tokens",
+                                        children: agentResult.usage_summary?.total_tokens || "-",
+                                    },
+                                    {
+                                        key: "total_cost",
+                                        label: "总成本",
+                                        children: agentResult.usage_summary?.total_cost ?? "-",
+                                    },
                                 ]}
                             />
                             {agentTraceId && (

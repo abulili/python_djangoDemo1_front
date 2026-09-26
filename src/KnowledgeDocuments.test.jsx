@@ -527,6 +527,14 @@ describe("knowledgeDocuments", () => {
                     supervisor_usage: {
                         total_tokens: 20,
                     },
+                    usage_summary: {
+                        router_tokens: 20,
+                        answer_tokens: 30,
+                        total_tokens: 50,
+                        router_cost: 0.0002,
+                        answer_cost: 0.001,
+                        total_cost: 0.0012,
+                    },
                     references: [],
                 },
             },
@@ -569,9 +577,12 @@ describe("knowledgeDocuments", () => {
         expect(screen.getByText("supervisor")).toBeInTheDocument();
         expect(screen.getByText("memory / retriever / workflow / answer")).toBeInTheDocument();
         expect(screen.getByText("需要知识库和工作流判断付款审批。")).toBeInTheDocument();
+        expect(screen.getAllByText("50").length).toBeGreaterThan(0);
+        expect(screen.getByText("0.0012")).toBeInTheDocument();
         expect(screen.getByText("trace-multi-agent-supervisor-001")).toBeInTheDocument();
     }, 15000);
 });
+
 
 
 
