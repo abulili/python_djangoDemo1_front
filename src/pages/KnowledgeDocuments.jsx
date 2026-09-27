@@ -438,12 +438,18 @@ const KnowledgeDocuments = () => {
                                     {
                                         key: "parallel_total",
                                         label: "并行耗时(s)",
-                                        children: agentResult.agent_timing?.parallel_total ?? "-",
+                                        children:
+                                            agentResult.agent_timing?.parallel_total ??
+                                            agentResult.langchain_timing?.parallel_total ??
+                                            "-",
                                     },
                                     {
                                         key: "answer_timing",
                                         label: "回答耗时(s)",
-                                        children: agentResult.agent_timing?.answer ?? "-",
+                                        children:
+                                            agentResult.agent_timing?.answer ??
+                                            agentResult.langchain_timing?.answer ??
+                                            "-",
                                     },
                                 ]}
                             />
@@ -518,6 +524,7 @@ const KnowledgeDocuments = () => {
                                             supervisor_usage: agentResult.supervisor_usage,
                                             agent_timing: agentResult.agent_timing,
                                             agent_plan: agentResult.agent_plan,
+                                            langchain_timing: agentResult.langchain_timing,
                                         }, null, 2)}
                                     </pre>
                                 </>

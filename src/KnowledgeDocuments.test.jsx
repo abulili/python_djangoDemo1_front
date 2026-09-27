@@ -418,6 +418,12 @@ describe("knowledgeDocuments", () => {
                     conversation_id: "langchain-agent-conversation-001",
                     search_type: "hybrid",
                     framework: "langchain-style",
+                    langchain_timing: {
+                        memory: 0.01,
+                        retriever: 0.03,
+                        workflow: 0.02,
+                        parallel_total: 0.04,
+                    },
                     idempotent: false,
                     tools: [
                         {
@@ -491,6 +497,7 @@ describe("knowledgeDocuments", () => {
 
         expect(await screen.findByText("LangChain-style Agent says approval is required.")).toBeInTheDocument();
         expect(screen.getByText("langchain-style")).toBeInTheDocument();
+        expect(screen.getByText("0.04")).toBeInTheDocument();
         expect(screen.getByText("trace-langchain-agent-001")).toBeInTheDocument();
 
         expect(screen.getAllByText("conversation_memory")[0]).toBeInTheDocument();

@@ -365,6 +365,20 @@ describe("LogList trace drawer", () => {
                 { step: "langchain_tool_memory", detail: { message_count: 0, returned_count: 0 } },
                 { step: "langchain_tool_retriever", detail: { search_type: "hybrid", hit_count: 1 } },
                 { step: "langchain_tool_workflow", detail: { my_request_count: 1 } },
+                {
+                    step: "langchain_parallel_context_done",
+                    detail: {
+                        parallel_tools: ["conversation_memory", "knowledge_retriever", "workflow_summary"],
+                        parallel_tool_count: 3,
+                        timing: {
+                            memory: 0.01,
+                            retriever: 0.03,
+                            workflow: 0.02,
+                            parallel_total: 0.04,
+                        },
+                        workflow_skipped: false,
+                    },
+                },
                 { step: "langchain_prompt_build", detail: { prompt_length: 500 } },
                 { step: "langchain_agent_done", detail: { answer_length: 30 } },
 
@@ -389,6 +403,8 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText("LangChain检索工具")).toBeInTheDocument();
         expect(screen.getByText("LangChain工作流工具")).toBeInTheDocument();
         expect(screen.getByText("LangChain业务模板")).toBeInTheDocument();
+        expect(screen.getByText("LangChain并行上下文完成")).toBeInTheDocument();
+        expect(screen.getByText(new RegExp("timing.parallel_total: 0.04"))).toBeInTheDocument();
         expect(screen.getByText("LangChain构建提示词")).toBeInTheDocument();
         expect(screen.getByText("LangChain完成")).toBeInTheDocument();
     });

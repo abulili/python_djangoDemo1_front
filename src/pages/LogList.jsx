@@ -233,6 +233,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             langchain_tool_retriever: "LangChain检索工具",
             langchain_tool_workflow: "LangChain工作流工具",
             langchain_prompt_build: "LangChain构建提示词",
+            langchain_parallel_context_done: "LangChain并行上下文完成",
             langchain_agent_done: "LangChain完成",
             langchain_agent_failed: "LangChain失败",
             langchain_agent_idempotent_hit: "LangChain幂等命中",
