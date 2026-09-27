@@ -536,6 +536,18 @@ describe("knowledgeDocuments", () => {
                         answer_cost: 0.001,
                         total_cost: 0.0012,
                     },
+                    agent_timing: {
+                        memory: 0.03,
+                        retriever: 0.08,
+                        workflow: 0.1,
+                        parallel_total: 0.12,
+                        answer: 0.34,
+                    },
+                    agent_plan: {
+                        router_type: "supervisor",
+                        selected_agents: ["memory", "retriever", "workflow", "answer"],
+                        supervisor_reason: "需要知识库和工作流判断付款审批。",
+                    },
                     references: [],
                 },
             },
@@ -582,6 +594,9 @@ describe("knowledgeDocuments", () => {
         expect(screen.getByText("需要知识库和工作流判断付款审批。")).toBeInTheDocument();
         expect(screen.getAllByText("50").length).toBeGreaterThan(0);
         expect(screen.getByText("0.0012")).toBeInTheDocument();
+        expect(screen.getByText("0.12")).toBeInTheDocument();
+        expect(screen.getByText("0.34")).toBeInTheDocument();
+        expect(screen.getByText(/agent_plan/)).toBeInTheDocument();
         expect(screen.getByText("trace-multi-agent-supervisor-001")).toBeInTheDocument();
     }, 15000);
 });

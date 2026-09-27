@@ -422,6 +422,12 @@ describe("LogList trace drawer", () => {
                     detail: {
                         parallel_agents: ["memory", "retriever", "workflow"],
                         parallel_agent_count: 3,
+                        timing: {
+                            memory: 0.03,
+                            retriever: 0.08,
+                            workflow: 0.1,
+                            parallel_total: 0.12,
+                        },
                     },
                 },
                 { step: "multi_agent_memory", detail: { message_count: 0 } },
@@ -432,6 +438,13 @@ describe("LogList trace drawer", () => {
                     detail: {
                         selected_agents: ["memory", "retriever", "workflow", "answer"],
                         router_type: "supervisor",
+                        usage_summary: {
+                            total_tokens: 50,
+                            total_cost: 0.0012,
+                        },
+                        timing: {
+                            answer: 0.34,
+                        },
                     },
                 },
             ],
@@ -453,6 +466,11 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText("知识检索Agent")).toBeInTheDocument();
         expect(screen.getByText("工作流Agent")).toBeInTheDocument();
         expect(screen.getByText("Multi-Agent完成")).toBeInTheDocument();
+        expect(screen.getAllByText(new RegExp("selected_agents: memory / retriever / workflow / answer")).length).toBeGreaterThan(0);
+        expect(screen.getByText(new RegExp("parallel_agents: memory / retriever / workflow"))).toBeInTheDocument();
+        expect(screen.getByText(new RegExp("timing.parallel_total: 0.12"))).toBeInTheDocument();
+        expect(screen.getByText(new RegExp("usage_summary.total_tokens: 50"))).toBeInTheDocument();
+        expect(screen.getByText(new RegExp("timing.answer: 0.34"))).toBeInTheDocument();
     });
 });
 

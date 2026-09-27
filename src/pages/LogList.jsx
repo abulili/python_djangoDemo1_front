@@ -429,6 +429,18 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
         return null;
     };
 
+    const formatDetailValue = (value) => {
+        if (Array.isArray(value)) {
+            return value.join(" / ");
+        }
+
+        if (typeof value === "object" && value !== null) {
+            return JSON.stringify(value);
+        }
+
+        return String(value);
+    };
+
     const renderStepDetail = (value) => {
         const detail = value || {};
         const keys = Object.keys(detail);
@@ -437,10 +449,40 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             return "-";
         }
 
-        const summaryKeys = ["retry_count", "max_retries", "countdown", "wait", "hit_count", "top_k", "model", "stream"];
-        const summary = summaryKeys
-            .filter((key) => detail[key] !== undefined && detail[key] !== null)
-            .map((key) => `${key}: ${detail[key]}`)
+        const summaryKeys = [
+            "retry_count",
+            "max_retries",
+            "countdown",
+            "wait",
+            "hit_count",
+            "top_k",
+            "model",
+            "stream",
+            "router_type",
+            "selected_agents",
+            "enabled_agents",
+            "parallel_agents",
+            "parallel_agent_count",
+            "answer_length",
+            "knowledge_hit_count",
+            "used_workflow_agent",
+        ];
+        const nestedSummary = [
+            ["usage.total_tokens", detail.usage?.total_tokens],
+            ["usage.cost", detail.usage?.cost],
+            ["usage_summary.total_tokens", detail.usage_summary?.total_tokens],
+            ["usage_summary.total_cost", detail.usage_summary?.total_cost],
+            ["timing.parallel_total", detail.timing?.parallel_total],
+            ["timing.answer", detail.timing?.answer],
+        ];
+
+        const summary = [
+            ...summaryKeys
+                .filter((key) => detail[key] !== undefined && detail[key] !== null)
+                .map((key) => [key, detail[key]]),
+            ...nestedSummary.filter(([, nestedValue]) => nestedValue !== undefined && nestedValue !== null),
+        ]
+            .map(([key, summaryValue]) => `${key}: ${formatDetailValue(summaryValue)}`)
             .join("，");
 
         return (
@@ -462,6 +504,7 @@ const LogList = ({ traceRefreshIntervalMs = 3000 }) => {
             </div>
         );
     };
+
     const columns = [
         { title: "ID", dataIndex: "id", width: 60 },
         { title: "用户输入", dataIndex: "prompt", ellipsis: true },

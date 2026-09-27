@@ -435,6 +435,16 @@ const KnowledgeDocuments = () => {
                                         label: "总成本",
                                         children: agentResult.usage_summary?.total_cost ?? "-",
                                     },
+                                    {
+                                        key: "parallel_total",
+                                        label: "并行耗时(s)",
+                                        children: agentResult.agent_timing?.parallel_total ?? "-",
+                                    },
+                                    {
+                                        key: "answer_timing",
+                                        label: "回答耗时(s)",
+                                        children: agentResult.agent_timing?.answer ?? "-",
+                                    },
                                 ]}
                             />
                             {agentTraceId && (
@@ -506,6 +516,8 @@ const KnowledgeDocuments = () => {
                                             jev_usage: agentResult.jev_usage,
                                             supervisor_reason: agentResult.supervisor_reason,
                                             supervisor_usage: agentResult.supervisor_usage,
+                                            agent_timing: agentResult.agent_timing,
+                                            agent_plan: agentResult.agent_plan,
                                         }, null, 2)}
                                     </pre>
                                 </>
