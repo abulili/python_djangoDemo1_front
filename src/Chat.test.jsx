@@ -25,10 +25,19 @@ vi.mock("./utils/trace", () => ({
 // Ant Design 图标在测试里没必要真的渲染，而且有时候会引起 ESM/CJS 报错。所以让它们都变成普通 <span />。
 vi.mock("@ant-design/icons", () => ({
     ArrowLeftOutlined: () => <span />,
-    SendOutlined: () => <span />,
     BarChartOutlined: () => <span />,
+    DashboardOutlined: () => <span />,
+    DatabaseOutlined: () => <span />,
     DeepSeekFilled: () => <span />,
+    FileTextOutlined: () => <span />,
+    HistoryOutlined: () => <span />,
+    MessageOutlined: () => <span />,
+    PlusOutlined: () => <span />,
+    ReloadOutlined: () => <span />,
+    SendOutlined: () => <span />,
+    StopOutlined: () => <span />,
     SwapOutlined: () => <span />,
+    ThunderboltOutlined: () => <span />,
 }));
 
 useChatStore.setState({
@@ -137,6 +146,66 @@ describe("Chat轮询", () => {
 
         expect(taskCalls.length).toBeLessThanOrEqual(2);
     }, 15000);
+
+    it("初始存在conversationId时自动加载右侧会话历史", async () => {
+        useChatStore.setState({
+            conversationId: "initial-conversation-id",
+            model: "deepseek",
+            streamStream: false,
+        });
+
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                conversation_id: "initial-conversation-id",
+                                title: "初始会话",
+                            },
+                        ],
+                    },
+                });
+            }
+
+            if (url === "/logs/conversation/initial-conversation-id/") {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            history: [
+                                {
+                                    id: "initial-user-message",
+                                    role: "user",
+                                    content: "初始问题",
+                                },
+                                {
+                                    id: "initial-assistant-message",
+                                    role: "assistant",
+                                    content: "初始回答",
+                                },
+                            ],
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("初始问题")).toBeInTheDocument();
+        expect(await screen.findByText("初始回答")).toBeInTheDocument();
+        expect(request.get).toHaveBeenCalledWith("/logs/conversation/initial-conversation-id/");
+    });
 
     it("成功后停止轮询", async () => {
         request.post.mockResolvedValue({
@@ -650,6 +719,78 @@ describe("Chat轮询", () => {
         ).length;
 
         expect(taskCallsLater).toBe(taskCallsAfter429);
+    });
+
+    it("AI回答支持Markdown渲染，用户消息保持纯文本", async () => {
+        request.get.mockImplementation((url) => {
+            if (url === "/prompt-templates/") {
+                return Promise.resolve({ data: { results: [] } });
+            }
+
+            if (url === "/logs/conversations") {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                conversation_id: "markdown-conversation",
+                                title: "Markdown 会话",
+                            },
+                        ],
+                    },
+                });
+            }
+
+            if (url === "/logs/conversation/markdown-conversation/") {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            history: [
+                                {
+                                    id: "user-md",
+                                    role: "user",
+                                    content: "## 用户原文标题",
+                                },
+                                {
+                                    id: "assistant-md",
+                                    role: "assistant",
+                                    content: "# AI 标题\n\n- 第一项\n- 第二项\n\n`trace_id`",
+                                },
+                            ],
+                        },
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        render(
+            <MemoryRouter>
+                <Chat />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByText("Markdown 会话"));
+
+        expect(await screen.findByRole("heading", { name: "AI 标题", level: 1 })).toBeInTheDocument();
+        expect(screen.getByText("第一项").closest("li")).toBeInTheDocument();
+        expect(screen.getByText("trace_id").tagName.toLowerCase()).toBe("code");
+        expect(screen.queryByRole("heading", { name: "用户原文标题" })).not.toBeInTheDocument();
+        expect(screen.getByText("## 用户原文标题")).toBeInTheDocument();
+    });
+
+    it("消息列表是独立滚动容器", async () => {
+        render(
+            <MemoryRouter>
+                <Chat />
+            </MemoryRouter>
+        );
+
+        const messageList = document.querySelector(".chat-messages");
+
+        expect(messageList).toBeInTheDocument();
+        expect(messageList).toHaveClass("virtual-message-list");
+        expect(getComputedStyle(messageList).overflowY).toBe("auto");
     });
 
 })

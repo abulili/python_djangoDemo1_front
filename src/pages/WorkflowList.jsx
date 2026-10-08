@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
     Button,
     Card,
@@ -17,6 +18,7 @@ import {
     Tabs,
     Tag,
 } from "antd";
+import {ArrowLeftOutlined} from '@ant-design/icons';
 
 import request from "../utils/request";
 
@@ -67,6 +69,8 @@ function getTaskStatusTag(status) {
     return <Tag color={item.color}>{item.text}</Tag>;
 }
 export default function WorkflowList() {
+    const navigate = useNavigate();
+
     const [loading, setLoading] = useState(false);
     const [mine, setMine] = useState([]);
     const [pending, setPending] = useState([]);
@@ -469,13 +473,16 @@ export default function WorkflowList() {
     };
 
     return (
-        <div style={{ padding: 24 }}>
-            <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+        <div style={{margin:24}}>
+            <Row justify="space-between" align="middle" style={{ marginBottom: 16}}>
                 <Col>
                     <h2>工作流审批</h2>
                 </Col>
                 <Col>
                     <Space>
+                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
+                            返回主页
+                        </Button>
                         <Button onClick={fetchData}>刷新</Button>
                         <Button type="primary" onClick={() => setCreateModalOpen(true)}>
                             新建付款申请

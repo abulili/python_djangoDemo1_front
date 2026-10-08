@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Alert,
@@ -49,6 +49,9 @@ const toolNameMap = {
     workflow_summary: "工作流摘要",
 };
 
+const AGENT_TASK_POLL_INTERVAL_MS = 1500;
+const MAX_AGENT_TASK_POLL_COUNT = 60;
+
 const KnowledgeDocuments = () => {
     const navigate = useNavigate();
 
@@ -70,6 +73,8 @@ const KnowledgeDocuments = () => {
     const [agentLoading, setAgentLoading] = useState(false);
     const [agentResult, setAgentResult] = useState(null);
     const [agentTraceId, setAgentTraceId] = useState("");
+    const agentTaskTimerRef = useRef(null);
+    const agentTaskPollCountRef = useRef(0);
 
     const [promptTemplates, setPromptTemplates] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -100,6 +105,11 @@ const KnowledgeDocuments = () => {
     useEffect(() => {
         fetchDocuments();
         fetchPromptTemplates();
+        return () => {
+            if (agentTaskTimerRef.current) {
+                clearInterval(agentTaskTimerRef.current);
+            }
+        };
     }, []);
 
     const openCreate = () => {
@@ -145,21 +155,117 @@ const KnowledgeDocuments = () => {
         return `agent-${Date.now()}`;
     };
 
+    const clearAgentTaskPolling = () => {
+        if (agentTaskTimerRef.current) {
+            clearInterval(agentTaskTimerRef.current);
+            agentTaskTimerRef.current = null;
+        }
+    };
+
+    const normalizeAgentTaskResult = (taskPayload, taskId) => {
+        const rawResult = taskPayload?.result || {};
+        const agentPayload = rawResult.result || rawResult.data || rawResult;
+
+        return {
+            ...agentPayload,
+            answer: agentPayload.answer || rawResult.answer || rawResult.response || taskPayload?.message || "",
+            conversation_id: agentPayload.conversation_id || rawResult.conversation_id || "-",
+            task_id: taskId,
+            async_task_id: taskId,
+            async_status: taskPayload?.status || "success",
+        };
+    };
+
+    const pollAgentTask = async (taskId) => {
+        agentTaskPollCountRef.current += 1;
+
+        if (agentTaskPollCountRef.current > MAX_AGENT_TASK_POLL_COUNT) {
+            clearAgentTaskPolling();
+            setAgentLoading(false);
+            message.error("Agent 异步任务查询超时，请稍后到日志页查看结果");
+            return;
+        }
+
+        try {
+            const response = await request.get(`/knowledge-documents/task/${taskId}/`);
+            const taskPayload = response.data?.data || {};
+            const taskStatus = taskPayload.status;
+
+            if (["pending", "processing", "started", "retry"].includes(taskStatus)) {
+                setAgentResult((previous) => ({
+                    ...(previous || {}),
+                    task_id: taskId,
+                    async_task_id: taskId,
+                    async_status: taskStatus,
+                }));
+                return;
+            }
+
+            clearAgentTaskPolling();
+            setAgentLoading(false);
+
+            if (taskStatus === "success") {
+                setAgentResult(normalizeAgentTaskResult(taskPayload, taskId));
+                setAgentTraceId(taskPayload.trace_id || response.headers?.["x-trace-id"] || getLatestTraceId());
+                message.success("Agent 异步问答完成");
+                return;
+            }
+
+            setAgentResult((previous) => ({
+                ...(previous || {}),
+                task_id: taskId,
+                async_task_id: taskId,
+                async_status: taskStatus || "failed",
+                answer: taskPayload.message || taskPayload.error || "Agent 异步任务执行失败",
+            }));
+            message.error(taskPayload.message || taskPayload.error || "Agent 异步任务执行失败");
+        } catch (error) {
+            const status = error.response?.status;
+            if ([401, 403, 404, 429].includes(status)) {
+                clearAgentTaskPolling();
+                setAgentLoading(false);
+                message.error(error.response?.data?.message || "Agent 异步任务查询已停止");
+            }
+        }
+    };
+
+    const startAgentTaskPolling = (taskId) => {
+        clearAgentTaskPolling();
+        agentTaskPollCountRef.current = 0;
+        pollAgentTask(taskId);
+        agentTaskTimerRef.current = setInterval(() => {
+            pollAgentTask(taskId);
+        }, AGENT_TASK_POLL_INTERVAL_MS);
+    };
+
     const handleAgentAsk = async () => {
         const values = await agentForm.validateFields();
+        let keepAgentLoading = false;
 
         try {
             setAgentLoading(true);
             setAgentTraceId("");
+            clearAgentTaskPolling();
 
             let askUrl = "/knowledge-documents/agent-ask/";
+            const executionMode = values.execution_mode || "sync";
+
+            if (executionMode === "async" && values.agent_type === "native") {
+                message.error("原生 Agent 暂不支持异步，请选择 LangChain Agent 或 Multi-Agent");
+                setAgentLoading(false);
+                return;
+            }
 
             if (values.agent_type === "langchain") {
-                askUrl = "/knowledge-documents/langchain-agent-ask/";
+                askUrl = executionMode === "async"
+                    ? "/knowledge-documents/langchain-agent-ask-async/"
+                    : "/knowledge-documents/langchain-agent-ask/";
             }
 
             if (values.agent_type === "multi_agent") {
-                askUrl = "/knowledge-documents/multi-agent-ask/";
+                askUrl = executionMode === "async"
+                    ? "/knowledge-documents/multi-agent-ask-async/"
+                    : "/knowledge-documents/multi-agent-ask/";
             }
             const payload = {
                 query: values.query,
@@ -175,13 +281,41 @@ const KnowledgeDocuments = () => {
 
             const response = await request.post(askUrl, payload);
 
+            if (executionMode === "async") {
+                const responseData = response.data?.data || {};
+                const taskId = responseData.task_id;
+
+                if (!taskId) {
+                    throw new Error("后端未返回 task_id");
+                }
+
+                setAgentTraceId(responseData.trace_id || response.headers?.["x-trace-id"] || getLatestTraceId());
+                setAgentResult({
+                    answer: "任务已提交，正在后台处理...",
+                    framework: values.agent_type === "multi_agent" ? "multi-agent-router-async" : "langchain-core-async",
+                    router_type: values.agent_type === "multi_agent" ? (values.router_type || "rule") : undefined,
+                    enabled_agents: values.agent_type === "multi_agent" ? (values.enabled_agents || ["memory", "retriever", "workflow"]) : [],
+                    conversation_id: values.conversation_id || "-",
+                    search_type: values.search_type || "hybrid",
+                    task_id: taskId,
+                    async_task_id: taskId,
+                    async_status: responseData.status || "processing",
+                });
+                message.success("Agent 异步任务已提交");
+                keepAgentLoading = true;
+                startAgentTaskPolling(taskId);
+                return;
+            }
+
             setAgentResult(response.data.data);
             setAgentTraceId(response.headers?.["x-trace-id"] || getLatestTraceId());
             message.success("Agent 问答完成");
         } catch (error) {
             message.error(error.response?.data?.message || "Agent 问答失败");
         } finally {
-            setAgentLoading(false);
+            if (!keepAgentLoading) {
+                setAgentLoading(false);
+            }
         }
     };
 
@@ -240,7 +374,7 @@ const KnowledgeDocuments = () => {
                     </Title>
                     <Space>
                         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/logs")}>
-                            返回日志
+                            返回主页
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={fetchDocuments}>
                             刷新
@@ -267,6 +401,7 @@ const KnowledgeDocuments = () => {
                         layout="vertical"
                         initialValues={{
                             agent_type: "native",
+                            execution_mode: "sync",
                             search_type: "hybrid",
                             router_type: "rule",
                             enabled_agents: ["memory", "retriever", "workflow"],
@@ -289,6 +424,15 @@ const KnowledgeDocuments = () => {
                                         { label: "原生 Agent", value: "native" },
                                         { label: "LangChain Agent", value: "langchain" },
                                         { label: "Multi-Agent", value: "multi_agent" },
+                                    ]}
+                                />
+                            </Form.Item>
+                            <Form.Item name="execution_mode" label="执行方式">
+                                <Select
+                                    style={{ width: 140 }}
+                                    options={[
+                                        { label: "同步", value: "sync" },
+                                        { label: "异步任务", value: "async" },
                                     ]}
                                 />
                             </Form.Item>
@@ -379,7 +523,7 @@ const KnowledgeDocuments = () => {
                     {agentResult && (
                         <div style={{ marginTop: 16 }}>
                             <Alert
-                                type="success"
+                                type={agentResult.async_status === "processing" ? "info" : "success"}
                                 showIcon
                                 message="Agent 回答"
                                 description={<Paragraph style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>{agentResult.answer}</Paragraph>}
@@ -395,6 +539,16 @@ const KnowledgeDocuments = () => {
                                         key: "framework",
                                         label: "编排框架",
                                         children: agentResult.framework || "native-agent",
+                                    },
+                                    {
+                                        key: "async_status",
+                                        label: "异步状态",
+                                        children: agentResult.async_status || "-",
+                                    },
+                                    {
+                                        key: "task_id",
+                                        label: "任务 ID",
+                                        children: agentResult.task_id || agentResult.async_task_id || "-",
                                     },
                                     {
                                         key: "router_type",

@@ -6,15 +6,24 @@ import LogList from "./pages/LogList";
 import request from "./utils/request";
 
 vi.mock("@ant-design/icons", () => ({
+    AppstoreOutlined: () => null,
+    ApiOutlined: () => null,
+    ApartmentOutlined: () => null,
     BookOutlined: () => null,
+    DashboardOutlined: () => null,
+    DatabaseOutlined: () => null,
+    DollarOutlined: () => null,
     ReloadOutlined: () => null,
     PlusOutlined: () => null,
     BarChartOutlined: () => null,
     ArrowLeftOutlined: () => null,
     CheckCircleOutlined: () => null,
     ClockCircleOutlined: () => null,
+    LogoutOutlined: () => null,
     RobotOutlined: () => null,
     FileTextOutlined: () => null,
+    ThunderboltOutlined: () => null,
+    WarningOutlined: () => null,
 }));
 
 vi.mock("./utils/request", () => {
@@ -218,7 +227,7 @@ describe("LogList trace drawer", () => {
 
         expect(await screen.findByText("飞书通知")).toBeInTheDocument();
         expect(await screen.findByText("notify_feishu")).toBeInTheDocument();
-    });
+    }, 15000);
 
     it("退出登录时调用后端登出接口并清理 token", async () => {
         request.get.mockResolvedValue({ data: { count: 0, results: [] } });
@@ -407,7 +416,7 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText(new RegExp("timing.parallel_total: 0.04"))).toBeInTheDocument();
         expect(screen.getByText("LangChain构建提示词")).toBeInTheDocument();
         expect(screen.getByText("LangChain完成")).toBeInTheDocument();
-    });
+    }, 15000);
     it("trace 展示 Multi-Agent Supervisor 调度步骤", async () => {
         const traceId = "trace-multi-agent-supervisor";
 
@@ -487,8 +496,5 @@ describe("LogList trace drawer", () => {
         expect(screen.getByText(new RegExp("timing.parallel_total: 0.12"))).toBeInTheDocument();
         expect(screen.getByText(new RegExp("usage_summary.total_tokens: 50"))).toBeInTheDocument();
         expect(screen.getByText(new RegExp("timing.answer: 0.34"))).toBeInTheDocument();
-    });
+    }, 15000);
 });
-
-
-

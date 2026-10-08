@@ -10,6 +10,15 @@ const request = axios.create({
 });
 let isLoggingOut = false;
 let refreshPromise = null;
+let logoutBackendCalled = false;
+const LOGOUT_BACKEND_LOCK_KEY = "logout_backend_lock_until";
+const LOGOUT_BACKEND_LOCK_MS = 30000;
+
+const canCallLogoutBackend = () => {
+    const lockUntil = Number(sessionStorage.getItem(LOGOUT_BACKEND_LOCK_KEY) || 0);
+    return !logoutBackendCalled && Date.now() > lockUntil;
+};
+
 const isAuthRequest = (url = "") => {
     return (
         url.includes("/token/") ||
@@ -27,7 +36,12 @@ export const handleLogout = async ({ callBackend = true } = {}) => {
     try {
         const accessToken = localStorage.getItem("access_token");
 
-        if (callBackend && accessToken) {
+        if (callBackend && accessToken && canCallLogoutBackend()) {
+            logoutBackendCalled = true;
+            sessionStorage.setItem(
+                LOGOUT_BACKEND_LOCK_KEY,
+                String(Date.now() + LOGOUT_BACKEND_LOCK_MS)
+            );
             await axios.post(
                 `${API_URL}/users/logout/`,
                 {},
@@ -35,6 +49,8 @@ export const handleLogout = async ({ callBackend = true } = {}) => {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                     },
+                    timeout: 5000,
+                    validateStatus: () => true,
                 }
             );
         }

@@ -10,10 +10,23 @@ vi.mock("./utils/request", () => ({
         get: vi.fn(),
         post: vi.fn(),
         patch: vi.fn(),
+        delete: vi.fn(),
     },
 }));
 
-function mockTemplatePage({ isAdmin = false } = {}) {
+const defaultNodes = [
+    {
+        id: 101,
+        template: 10,
+        node_name: "一级审批",
+        node_order: 1,
+        approver_field: "current_approver",
+        min_amount: null,
+        is_active: true,
+    },
+];
+
+function mockTemplatePage({ isAdmin = false, isStaff = isAdmin, nodes = defaultNodes } = {}) {
     request.get.mockImplementation((url) => {
         if (url === "/users/me/") {
             return Promise.resolve({
@@ -23,7 +36,7 @@ function mockTemplatePage({ isAdmin = false } = {}) {
                     data: {
                         id: isAdmin ? 1 : 2,
                         username: isAdmin ? "admin" : "normal",
-                        is_staff: isAdmin,
+                        is_staff: isStaff,
                         is_superuser: isAdmin,
                     },
                 },
@@ -43,17 +56,7 @@ function mockTemplatePage({ isAdmin = false } = {}) {
                             code: "payment_approval",
                             description: "付款审批",
                             is_active: true,
-                            nodes: [
-                                {
-                                    id: 101,
-                                    template: 10,
-                                    node_name: "一级审批",
-                                    node_order: 1,
-                                    approver_field: "current_approver",
-                                    min_amount: null,
-                                    is_active: true,
-                                },
-                            ],
+                            nodes,
                         },
                     ],
                 },
@@ -66,17 +69,7 @@ function mockTemplatePage({ isAdmin = false } = {}) {
                     count: 1,
                     next: null,
                     previous: null,
-                    results: [
-                        {
-                            id: 101,
-                            template: 10,
-                            node_name: "一级审批",
-                            node_order: 1,
-                            approver_field: "current_approver",
-                            min_amount: null,
-                            is_active: true,
-                        },
-                    ],
+                    results: nodes,
                 },
             });
         }
@@ -103,7 +96,7 @@ describe("WorkflowTemplateManage", () => {
         expect(await screen.findByText("一级审批")).toBeInTheDocument();
 
         expect(screen.queryByRole("button", { name: "新建模板" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "给当前模板新增节点" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "新增节点" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "停用" })).not.toBeInTheDocument();
     });
@@ -120,13 +113,27 @@ describe("WorkflowTemplateManage", () => {
         expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
 
         expect(screen.getByRole("button", { name: "新建模板" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "给当前模板新增节点" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "配置节点" })).toBeInTheDocument();
 
-        expect(screen.getAllByRole("button", { name: "编辑" }).length).toBeGreaterThan(0);
-        expect(screen.getByRole("button", { name: "停用" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "编辑" })).toBeInTheDocument();
     });
 
-    it("选择模板时加载对应节点", async () => {
+    it("后台人员也可以管理模板和节点", async () => {
+        mockTemplatePage({ isAdmin: false, isStaff: true });
+
+        render(
+            <MemoryRouter>
+                <WorkflowTemplateManage />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
+
+        expect(screen.getByRole("button", { name: "新建模板" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "配置节点" })).toBeInTheDocument();
+    });
+
+    it("配置模板节点时加载对应节点", async () => {
         mockTemplatePage({ isAdmin: true });
 
         render(
@@ -137,11 +144,14 @@ describe("WorkflowTemplateManage", () => {
 
         expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "选择" }));
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
 
         await waitFor(() => {
             expect(request.get).toHaveBeenCalledWith("/workflows/template-nodes/?template=10");
         });
+
+        expect(await screen.findByText("配置节点：付款审批流程")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "新增节点" })).toBeInTheDocument();
     });
 
     it("管理员可以创建模板", async () => {
@@ -209,7 +219,8 @@ describe("WorkflowTemplateManage", () => {
 
         expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "给当前模板新增节点" }));
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
+        fireEvent.click(await screen.findByRole("button", { name: "新增节点" }));
 
         fireEvent.change(screen.getByLabelText("节点名称"), {
             target: { value: "二级审批" },
@@ -243,6 +254,114 @@ describe("WorkflowTemplateManage", () => {
         });
     });
 
+    it("管理员可以编辑当前模板节点", async () => {
+        mockTemplatePage({ isAdmin: true });
+
+        request.patch.mockResolvedValue({
+            data: {
+                id: 101,
+                node_name: "财务一级审批",
+                node_order: 1,
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <WorkflowTemplateManage />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
+        expect(await screen.findByText("配置节点：付款审批流程")).toBeInTheDocument();
+        const editButtons = await screen.findAllByRole("button", { name: /编\s*辑/ });
+        fireEvent.click(editButtons[editButtons.length - 1]);
+
+        fireEvent.change(screen.getByLabelText("节点名称"), {
+            target: { value: "财务一级审批" },
+        });
+
+        const okButton = document.querySelector(".ant-modal-footer .ant-btn-primary");
+        fireEvent.click(okButton);
+
+        await waitFor(() => {
+            expect(request.patch).toHaveBeenCalledWith(
+                "/workflows/template-nodes/101/",
+                expect.objectContaining({
+                    node_name: "财务一级审批",
+                })
+            );
+        });
+    });
+
+    it("管理员可以调整节点流程顺序", async () => {
+        mockTemplatePage({
+            isAdmin: true,
+            nodes: [
+                ...defaultNodes,
+                {
+                    id: 102,
+                    template: 10,
+                    node_name: "二级审批",
+                    node_order: 2,
+                    approver_field: "second_approver",
+                    min_amount: "1000.00",
+                    is_active: true,
+                },
+            ],
+        });
+
+        request.patch.mockResolvedValue({ data: {} });
+
+        render(
+            <MemoryRouter>
+                <WorkflowTemplateManage />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
+        expect(await screen.findByText("配置节点：付款审批流程")).toBeInTheDocument();
+        const moveUpButtons = await screen.findAllByRole("button", { name: /上\s*移/ });
+        fireEvent.click(moveUpButtons[1]);
+
+        await waitFor(() => {
+            expect(request.patch).toHaveBeenCalledWith(
+                "/workflows/template-nodes/102/",
+                { node_order: 1 }
+            );
+            expect(request.patch).toHaveBeenCalledWith(
+                "/workflows/template-nodes/101/",
+                { node_order: 2 }
+            );
+        });
+    });
+
+    it("管理员可以删除节点", async () => {
+        mockTemplatePage({ isAdmin: true });
+        request.delete.mockResolvedValue({ data: {} });
+
+        render(
+            <MemoryRouter>
+                <WorkflowTemplateManage />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
+        expect(await screen.findByText("配置节点：付款审批流程")).toBeInTheDocument();
+        fireEvent.click(await screen.findByRole("button", { name: /删\s*除/ }));
+        const confirmButton = document.querySelector(".ant-popconfirm-buttons .ant-btn-primary");
+        fireEvent.click(confirmButton);
+
+        await waitFor(() => {
+            expect(request.delete).toHaveBeenCalledWith("/workflows/template-nodes/101/");
+        });
+    });
+
     it("管理员可以停用节点", async () => {
         mockTemplatePage({ isAdmin: true });
 
@@ -260,6 +379,8 @@ describe("WorkflowTemplateManage", () => {
         );
 
         expect(await screen.findByText("一级审批")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "配置节点" }));
 
         fireEvent.click(screen.getByRole("button", { name: "停用" }));
 
@@ -285,7 +406,7 @@ describe("WorkflowTemplateManage", () => {
         expect(await screen.findByText("付款审批流程")).toBeInTheDocument();
 
         expect(
-            screen.queryByRole("button", { name: "给当前模板新增节点" })
+            screen.queryByRole("button", { name: "新增节点" })
         ).not.toBeInTheDocument();
     });
 });

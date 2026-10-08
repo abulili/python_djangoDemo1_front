@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { Layout, Input, Button, Card, Space, message, Spin, Typography, Select, List, Switch, Tag } from 'antd';
-import { ArrowLeftOutlined, SendOutlined, BarChartOutlined, DeepSeekFilled, SwapOutlined } from '@ant-design/icons';
+import {
+    ArrowLeftOutlined,
+    DashboardOutlined,
+    DatabaseOutlined,
+    DeepSeekFilled,
+    FileTextOutlined,
+    HistoryOutlined,
+    MessageOutlined,
+    PlusOutlined,
+    ReloadOutlined,
+    SendOutlined,
+    StopOutlined,
+    SwapOutlined,
+    ThunderboltOutlined,
+} from '@ant-design/icons';
 import request from '../utils/request';
 import useChatStore from '../store/useChatStore';
 import { fetchWithAuth } from '../utils/fetchWithAuth';
@@ -11,6 +25,25 @@ import { getLatestTraceId } from "../utils/trace";
 const { Header, Content, Sider } = Layout;
 const { TextArea } = Input;
 
+const MarkdownAnswer = ({ content }) => (
+    <div className="markdown-body">
+        <ReactMarkdown
+            components={{
+                a: ({ node, ...props }) => (
+                    <a {...props} target="_blank" rel="noreferrer" />
+                ),
+                pre: ({ node, ...props }) => (
+                    <pre className="chat-markdown-code" {...props} />
+                ),
+                code: ({ node, className, ...props }) => (
+                    <code className={className ? `${className} chat-markdown-code-text` : "chat-markdown-inline-code"} {...props} />
+                ),
+            }}
+        >
+            {content}
+        </ReactMarkdown>
+    </div>
+);
 
 export const MAX_TASK_POLL_COUNT = 60;
 const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 2000, }) => {
@@ -53,6 +86,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
     const pendingTextRef = React.useRef(''); // 还没显示出来的文字队列
     const typingTimerRef = React.useRef(null); // 打字机定时器 用ref的原因:只是保存过程状态，不需要每次变动都触发页面重新渲染。
     const currentAssistantMessageIdRef = React.useRef(null);
+    const initialConversationIdRef = React.useRef(conversationId);
 
     const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -169,7 +203,7 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         fetchConversations()
     }, [])
 
-    const openConversation = async (id) => {
+    const openConversation = async (id, options = {}) => {
         try {
             setLoading(true);
             setResponse('');
@@ -195,11 +229,24 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
                 navigate('/');
                 return;
             }
+            if (options.clearOnFailure) {
+                resetConversation();
+                setChatMessages([]);
+                setResponse('');
+            }
             message.error('加载会话历史失败');
         } finally {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        const initialConversationId = initialConversationIdRef.current;
+
+        if (initialConversationId) {
+            openConversation(initialConversationId, { clearOnFailure: true });
+        }
+    }, [])
 
     const createNewConversation = () => {
         // setConversationId('');
@@ -620,165 +667,241 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
         });
     }, [response, loading]);
 
-    // style
-    const siderStyle = {
-        textAlign: 'center',
-        lineHeight: '120px',
-        color: '#fff',
-        backgroundColor: '#1677ff',
-    };
-
-    const chatPanelStyle = {
-        flex: 1,
-        minHeight: 320,
-        background: '#f6f8fb',
-        border: '1px solid #e8edf3',
-    };
-
-    const chatMessagesStyle = {
-        minHeight: 260,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        padding: '4px 0',
-    };
-
-    const bubbleRowStyle = (role) => ({
-        display: 'flex',
-        justifyContent: role === 'user' ? 'flex-end' : 'flex-start',
-    });
-
-    const bubbleStyle = (role) => ({
-        maxWidth: '72%',
-        padding: '10px 14px',
-        borderRadius: role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-        background: role === 'user' ? '#1677ff' : '#fff',
-        color: role === 'user' ? '#fff' : '#1f2937',
-        border: role === 'user' ? '1px solid #1677ff' : '1px solid #e5e7eb',
-        boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)',
-        whiteSpace: 'pre-wrap',
-        lineHeight: 1.7,
-        textAlign: 'left',
-        wordBreak: 'break-word',
-    });
+    const activeModeLabel = ragEnabled ? '知识库问答' : streamStream ? '流式对话' : '任务轮询';
+    const activeModelLabel = model || 'deepseek';
+    const selectedConversation = conversations.find((item) => item.conversation_id === conversationId);
+    const conversationTitle = selectedConversation?.title || (conversationId ? `会话 ${conversationId.slice(0, 8)}` : '新会话');
+    const visibleChatMessages = chatMessages.slice(-80);
+    const getMessageMeta = (role) => role === 'user'
+        ? { name: '我', avatar: '我' }
+        : { name: activeModelLabel, avatar: 'AI' };
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
-                    <h2>AI 对话</h2>
-                    <Space>
-                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回</Button>
-                        {/* <Button icon={<BarChartOutlined />} onClick={() => navigate('/stats')}>统计</Button> */}
-                        {!ragEnabled && <Button icon={<SwapOutlined />} onClick={toggleStreamStream}>当前流式，{streamStream ? '已开启' : '已关闭'}</Button>}
-                        <Typography.Text>知识库问答</Typography.Text>
-                        <Switch checked={ragEnabled} onChange={setRagEnabled} />
-                        <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>切换模型，当前：{model}</Button>
-                    </Space>
+        <Layout className="saas-shell chat-shell">
+            <Sider width={280} className="chat-sider">
+                <div className="brand-lockup chat-brand">
+                    <div className="brand-mark">AI</div>
+                    <div>
+                        <div className="brand-title">AI 对话</div>
+                        <div className="brand-subtitle">调试、知识库与模板测试</div>
+                    </div>
                 </div>
-            </Header>
-            <Layout>
-                <Sider width="25%" style={siderStyle}>
-                    <Card size='small' title='会话历史'>
-                        <Space orientation="vertical"     style={{ width: '100%' }}>
-                            <Space>
-                                <Button onClick={fetchConversations} loading={conversationLoading}>刷新会话</Button>
-                                <Button onClick={createNewConversation} type='primary'>新建会话</Button>
-                            </Space>
-                        </Space>
 
-                        {/* <Space wrap>
-                            {conversations.map((item) => (
-                                <Button key={item.conversationId} type={item.conversationId === conversationId ? 'primary' : 'default'} onClick={() => openConversation(item.conversation_id)}>
-                                    {item.conversation_id.slice(0, 8)}（{item.total}）
-                                </Button>
-                            ))}
-                        </Space> */}
-                    </Card>
-                    <List size="small" loading={conversationLoading} dataSource={conversations} renderItem={(item) => (
-                        <List.Item key={item.conversation_id} onClick={() => openConversation(item.conversation_id)}>
-                            {item.title || item.conversation_id}
-                        </List.Item>
-                    )}>
-                    </List>
-                </Sider>
-                <Content style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {conversationId && <Typography.Text type="secondary">会话ID: {conversationId}</Typography.Text>}
+                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                    <Button type="primary" block icon={<PlusOutlined />} onClick={createNewConversation}>
+                        新建会话
+                    </Button>
+                    <Button block icon={<ReloadOutlined />} onClick={fetchConversations} loading={conversationLoading}>
+                        刷新会话
+                    </Button>
+                </Space>
 
+                <div className="chat-side-section">
+                    <div className="chat-section-title">
+                        <HistoryOutlined />
+                        <span>会话历史</span>
+                    </div>
+                    <List
+                        className="chat-history-list"
+                        size="small"
+                        loading={conversationLoading}
+                        dataSource={conversations}
+                        locale={{ emptyText: '暂无会话记录' }}
+                        renderItem={(item) => (
+                            <List.Item
+                                key={item.conversation_id}
+                                className={item.conversation_id === conversationId ? 'chat-history-item active' : 'chat-history-item'}
+                                onClick={() => openConversation(item.conversation_id)}
+                            >
+                                <Space orientation="vertical" size={2} style={{ width: '100%' }}>
+                                    <Typography.Text ellipsis strong>
+                                        {item.title || item.conversation_id}
+                                    </Typography.Text>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                        {item.conversation_id}
+                                    </Typography.Text>
+                                </Space>
+                            </List.Item>
+                        )}
+                    />
+                </div>
+            </Sider>
 
-
-                    {!streamStream && !ragEnabled && (
-                        <Card orientation="vertical" style={{ width: '100%' }}>
-                            <Select allowClear placeholder="Prompt 模板" style={{ width: '100%' }}
-                                value={selectedTemplate?.id}
-                                onChange={handleTemplateChange}
-                                options={templates.map(template => ({
-                                    label: template.name,
-                                    value: template.id
-                                }))}
-                            ></Select>
-                            {selectedTemplate?.variables?.map(name => (
-                                <Space.Compact key={name} style={{ width: '100%', margin: '4px 0' }}>
-                                    <Space.Addon>{name}</Space.Addon>
-                                    <Input key={name}
-                                        value={name === 'user_input' ? prompt : (templetVars[name] ?? '')}
-                                        onChange={(e) => handleTemplateVarChange(name, e.target.value)}
-                                        disabled={name === 'user_input'}
-                                    />
-                                </Space.Compact>
-
-                            ))}
-                        </Card>
-                    )}
-                    <Card style={chatPanelStyle}>
-                        <Spin spinning={loading} description="AI 正在思考...">
-                            <div style={chatMessagesStyle}>
-                                {chatMessages.length > 0 ? (
-                                    chatMessages.map((item) => (
-                                        <div key={item.id} style={bubbleRowStyle(item.role)}>
-                                            <div style={bubbleStyle(item.role)}>
-                                                {item.content || (
-                                                    <Typography.Text type="secondary">
-                                                        {item.pending ? 'AI 正在思考...' : ''}
-                                                    </Typography.Text>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <Typography.Text type="secondary">AI 的回复将显示在这里...</Typography.Text>
-                                )}
-                            </div>
-                        </Spin>
-                    </Card>
-                    {references.length > 0 && (
-                        <Card size='small' title="引用片段">
-                            <Space orientation="vertical"     style={{ width: '100%' }}>
-                                {references.map((item) => (
-                                    <Card key={item.id} size="small">
-                                        <Space style={{ marginBottom: 8 }}>
-                                            <Tag color="blue">{item.document_title}</Tag>
-                                            <Tag>chunk {item.chunk_index}</Tag>
-                                            <Tag color="green">score {item.score}</Tag>
-                                        </Space>
-                                        <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{item.content}</Typography.Paragraph>
-                                    </Card>
-                                ))}
-                            </Space>
-                        </Card>
-                    )}
-                    <form onSubmit={handleSubmit}>
-                        <Space.Compact style={{ width: '100%' }}>
-                            <TextArea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="请输入消息..." rows={3} disabled={loading} style={{ flex: '1' }}></TextArea>
-                            <Button type="primary" htmlType="submit" loading={loading} icon={<SendOutlined />} disabled={loading} style={{ height: 'auto' }}>
-                                {loading ? '正在思考...' : '发送'}
+            <Layout className="saas-main">
+                <Header className="saas-header">
+                    <div className="saas-header-inner">
+                        <Space size={12}>
+                            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
+                                返回主页
                             </Button>
-                            {streamStream && loading && <Button danger onClick={stopStream}>停止生成</Button>}
-                        </Space.Compact>
-                    </form>
+                        </Space>
+                        <Space>
+                            {!ragEnabled && (
+                                <Button icon={<ThunderboltOutlined />} onClick={toggleStreamStream}>
+                                    {streamStream ? '流式已开启' : '任务轮询'}
+                                </Button>
+                            )}
+                            <Space size={8}>
+                                <Typography.Text type="secondary">知识库问答</Typography.Text>
+                                <Switch checked={ragEnabled} onChange={setRagEnabled} />
+                            </Space>
+                            <Button icon={model === 'deepseek' ? <DeepSeekFilled /> : <SwapOutlined />} onClick={toggleModel}>
+                                切换模型：{model}
+                            </Button>
+                        </Space>
+                    </div>
+                </Header>
+
+                <Content className="chat-content">
+                    <div className="chat-workbench">
+                        <div className="chat-main-panel">
+                            {/* <div className="chat-conversation-header">
+                                <div>
+                                    <Typography.Title className="chat-conversation-title" level={2}>
+                                        {conversationTitle}
+                                    </Typography.Title>
+                                    <Typography.Text type="secondary">
+                                        {conversationId ? `会话 ID：${conversationId}` : '当前是新会话'}
+                                    </Typography.Text>
+                                </div>
+                                <Space wrap>
+                                    <Tag color="blue">{activeModeLabel}</Tag>
+                                    <Tag color="green">{activeModelLabel}</Tag>
+                                    {selectedTemplate && <Tag color="purple">{selectedTemplate.name}</Tag>}
+                                </Space>
+                            </div> */}
+
+                            <div className="chat-meta-strip">
+                                <div className="chat-meta-item">
+                                    <span>当前模型</span>
+                                    <strong>{activeModelLabel}</strong>
+                                </div>
+                                <div className="chat-meta-item">
+                                    <span>执行模式</span>
+                                    <strong>{activeModeLabel}</strong>
+                                </div>
+                                <div className="chat-meta-item">
+                                    <span>会话 ID</span>
+                                    <strong>{conversationId || '新会话'}</strong>
+                                </div>
+                            </div>
+
+                            {!streamStream && !ragEnabled && (
+                                <Card className="panel-card chat-template-card" size="small" title="Prompt 模板">
+                                    <Select
+                                        allowClear
+                                        placeholder="Prompt 模板"
+                                        style={{ width: '100%' }}
+                                        value={selectedTemplate?.id}
+                                        onChange={handleTemplateChange}
+                                        options={templates.map(template => ({
+                                            label: template.name,
+                                            value: template.id
+                                        }))}
+                                    />
+                                    {selectedTemplate?.variables?.map(name => (
+                                        <Space.Compact key={name} style={{ width: '100%', marginTop: 8 }}>
+                                            <Space.Addon>{name}</Space.Addon>
+                                            <Input
+                                                value={name === 'user_input' ? prompt : (templetVars[name] ?? '')}
+                                                onChange={(e) => handleTemplateVarChange(name, e.target.value)}
+                                                disabled={name === 'user_input'}
+                                            />
+                                        </Space.Compact>
+                                    ))}
+                                </Card>
+                            )}
+
+                            <Card className="panel-card chat-card">
+                                <Spin spinning={loading} description="AI 正在思考...">
+                                    <div className="chat-messages virtual-message-list" style={{ overflowY: 'auto' }}>
+                                        {visibleChatMessages.length > 0 ? (
+                                            visibleChatMessages.map((item) => {
+                                                const meta = getMessageMeta(item.role);
+
+                                                return (
+                                                    <div key={item.id} className={`chat-message-row ${item.role}`}>
+                                                        <div className={`chat-avatar ${item.role}`}>{meta.avatar}</div>
+                                                        <div className="chat-message-body">
+                                                            <div className="chat-message-name">{meta.name}</div>
+                                                            <div className={`chat-bubble ${item.role}`}>
+                                                                {item.content ? (
+                                                                    item.role === 'assistant'
+                                                                        ? <MarkdownAnswer content={item.content} />
+                                                                        : item.content
+                                                                ) : (
+                                                                    <Typography.Text type="secondary">
+                                                                        {item.pending ? 'AI 正在思考...' : ''}
+                                                                    </Typography.Text>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="chat-empty">
+                                                <MessageOutlined />
+                                                <Typography.Text strong>AI 的回复将显示在这里...</Typography.Text>
+                                                <Typography.Text type="secondary">
+                                                    输入消息后，回复、任务状态和引用片段会显示在这里。
+                                                </Typography.Text>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Spin>
+                            </Card>
+
+                            {references.length > 0 && (
+                                <Card className="panel-card chat-reference-card" size="small" title="引用片段">
+                                    <Space orientation="vertical" style={{ width: '100%' }}>
+                                        {references.map((item) => (
+                                            <Card key={item.id} size="small" className="reference-item">
+                                                <Space style={{ marginBottom: 8 }} wrap>
+                                                    <Tag color="blue">{item.document_title}</Tag>
+                                                    <Tag>chunk {item.chunk_index}</Tag>
+                                                    <Tag color="green">score {item.score}</Tag>
+                                                </Space>
+                                                <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                                                    {item.content}
+                                                </Typography.Paragraph>
+                                            </Card>
+                                        ))}
+                                    </Space>
+                                </Card>
+                            )}
+
+                            <form className="chat-composer" onSubmit={handleSubmit}>
+                                <TextArea
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    placeholder="请输入消息..."
+                                    rows={4}
+                                    disabled={loading}
+                                />
+                                <div className="composer-actions">
+                                    <Space>
+                                        {streamStream && loading && (
+                                            <Button danger icon={<StopOutlined />} onClick={stopStream}>
+                                                停止生成
+                                            </Button>
+                                        )}
+                                        <Button
+                                            type="primary"
+                                            htmlType="submit"
+                                            loading={loading}
+                                            icon={<SendOutlined />}
+                                            disabled={loading}
+                                        >
+                                            {loading ? '正在思考...' : '发送'}
+                                        </Button>
+                                    </Space>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </Content>
             </Layout>
-
         </Layout>
     )
 }

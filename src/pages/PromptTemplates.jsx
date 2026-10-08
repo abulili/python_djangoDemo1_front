@@ -44,16 +44,15 @@ const PromptTemplates = () => {
     }
 
     const openCreate = () => {
-        // 清空表单
         setEditing(null);
-
-        form.setFieldValue({
+        form.resetFields();
+        form.setFieldsValue({
             name: '',
-            descriptions: '',
+            description: '',
             content: '',
             variablesText: '',
             is_active: true,
-        })
+        });
         setOpen(true)
     }
 
@@ -61,7 +60,7 @@ const PromptTemplates = () => {
         setEditing(record)
         form.setFieldsValue({
             name: record.name,
-            descriptions: record.descriptioncriptions,
+            description: record.description,
             content: record.content,
             variablesText: (record.variables || []).join(','),
             is_active: record.is_active,
@@ -197,7 +196,7 @@ const PromptTemplates = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <Title level={3} style={{ margin: 0 }}>Prompt 模板管理</Title>
                     <Space>
-                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志</Button>
+                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回主页</Button>
                         <Button icon={<PlusOutlined />} onClick={openCreate} type="primary">创建模板</Button>
                     </Space>
                 </div>

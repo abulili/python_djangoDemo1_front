@@ -42,7 +42,7 @@ const Stats = () => {
             <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <h2>AI 调用统计</h2>
-                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回日志列表</Button>
+                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>返回主页列表</Button>
                     <Button icon={<PlusOutlined />} onClick={() => navigate('/chat')}>发起对话</Button>
                 </div>
             </Header>
