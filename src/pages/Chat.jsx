@@ -679,13 +679,13 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
     return (
         <Layout className="saas-shell chat-shell">
             <Sider width={280} className="chat-sider">
-                <div className="brand-lockup chat-brand">
+                {/* <div className="brand-lockup chat-brand">
                     <div className="brand-mark">AI</div>
                     <div>
                         <div className="brand-title">AI 对话</div>
                         <div className="brand-subtitle">调试、知识库与模板测试</div>
                     </div>
-                </div>
+                </div> */}
 
                 <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                     <Button type="primary" block icon={<PlusOutlined />} onClick={createNewConversation}>
@@ -730,11 +730,11 @@ const Chat = ({ maxTaskPollCount = MAX_TASK_POLL_COUNT, taskPollIntervalMs = 200
             <Layout className="saas-main">
                 <Header className="saas-header">
                     <div className="saas-header-inner">
-                        <Space size={12}>
+                        {/* <Space size={12}>
                             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
                                 返回主页
                             </Button>
-                        </Space>
+                        </Space> */}
                         <Space>
                             {!ragEnabled && (
                                 <Button icon={<ThunderboltOutlined />} onClick={toggleStreamStream}>

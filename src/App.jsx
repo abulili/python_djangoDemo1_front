@@ -9,6 +9,11 @@ import PromptTemplates from './pages/PromptTemplates';
 import KnowledgeDocuments from './pages/KnowledgeDocuments';
 import WorkflowList from "./pages/WorkflowList";
 import WorkflowTemplateManage from "./pages/WorkflowTemplateManage";
+import NovelVideo from "./pages/NovelVideo";
+import NovelVideoCreate from "./pages/novel-video/NovelVideoCreate";
+import NovelVideoJobs from "./pages/novel-video/NovelVideoJobs";
+import NovelVideoAssets from "./pages/novel-video/NovelVideoAssets";
+import AppLayout from "./components/AppLayout";
 import 'antd/dist/reset.css';
 
 function App() {
@@ -17,13 +22,19 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/logs" element={<LogList />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/prompt-templates" element={<PromptTemplates />} />
-          <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
-          <Route path="/workflows" element={<WorkflowList />} />
-          <Route path="/workflow-templates" element={<WorkflowTemplateManage />} />
+          <Route element={<AppLayout />}>
+            <Route path="/logs" element={<LogList />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/prompt-templates" element={<PromptTemplates />} />
+            <Route path="/knowledge-documents" element={<KnowledgeDocuments />} />
+            <Route path="/workflows" element={<WorkflowList />} />
+            <Route path="/workflow-templates" element={<WorkflowTemplateManage />} />
+            <Route path="/novel-video" element={<NovelVideo />} />
+            <Route path="/novel-video/create" element={<NovelVideoCreate />} />
+            <Route path="/novel-video/jobs" element={<NovelVideoJobs />} />
+            <Route path="/novel-video/assets" element={<NovelVideoAssets />} />
+          </Route>
         </Routes>
       </BrowserRouter>
       {/* <header className="App-header">

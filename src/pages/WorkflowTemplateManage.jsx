@@ -317,16 +317,16 @@ export default function WorkflowTemplateManage() {
         <div className="workflow-template-page">
             <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                 <Col>
-                    <h2>流程模板管理</h2>
+                    {/* <h2>流程模板管理</h2>
                     <Typography.Text type="secondary">
                         先选择流程模板，再进入弹窗维护节点顺序和审批规则。
-                    </Typography.Text>
+                    </Typography.Text> */}
                 </Col>
                 <Col>
                     <Space>
-                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
+                        {/* <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
                                 返回主页
-                        </Button>
+                        </Button> */}
                         <Button onClick={fetchTemplates}>刷新</Button>
                         {isAdmin && (
                             <Button type="primary" onClick={openCreateTemplate}>

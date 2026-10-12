@@ -177,7 +177,7 @@ const PromptTemplates = () => {
 
     }, {
         title: '操作',
-        width: 160,
+        // width: 160,
         fixed: 'end',
         render: (_, record) => (
             <Space>
@@ -191,8 +191,8 @@ const PromptTemplates = () => {
     ]
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
+        <Layout style={{ minHeight: 'calc(100vh - 64px)' }}>
+            {/* <Header style={{ background: '#fff', padding: '0 24px', borderBottom: '1px solid #f0f0f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
                     <Title level={3} style={{ margin: 0 }}>Prompt 模板管理</Title>
                     <Space>
@@ -200,11 +200,12 @@ const PromptTemplates = () => {
                         <Button icon={<PlusOutlined />} onClick={openCreate} type="primary">创建模板</Button>
                     </Space>
                 </div>
-            </Header>
+            </Header> */}
             <Content style={{ padding: 24 }}>
                 <Space style={{ marginBottom: 16 }}>
                     <Input.Search allowClear placeholder='搜索模板名称' value={keyword} onChange={(event) => setKeyword(event.target.value)} onSearch={fetchTemplates} style={{ width: 280 }} />
                     <Button icon={<ReloadOutlined />} onClick={fetchTemplates}>刷新</Button>
+                    <Button icon={<PlusOutlined />} onClick={openCreate} type="primary">创建模板</Button>
                 </Space>
                 <Table loading={loading} columns={columns} dataSource={templates} rowKey="id" pagination={{
                     pageSize: 10,

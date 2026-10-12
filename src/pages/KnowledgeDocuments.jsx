@@ -5,6 +5,7 @@ import {
     Button,
     Card,
     Checkbox,
+    Collapse,
     Descriptions,
     Drawer,
     Form,
@@ -328,7 +329,7 @@ const KnowledgeDocuments = () => {
         {
             title: "标题",
             dataIndex: "title",
-            width: 220,
+            // width: 220,
         },
         {
             title: "内容",
@@ -349,7 +350,6 @@ const KnowledgeDocuments = () => {
         },
         {
             title: "操作",
-            width: 170,
             render: (_, record) => (
                 <Space>
                     <Button icon={<EyeOutlined />} onClick={() => openChunks(record)}>
@@ -366,8 +366,8 @@ const KnowledgeDocuments = () => {
     ];
 
     return (
-        <Layout style={{ minHeight: "100vh" }}>
-            <Header style={{ background: "#fff", padding: "0 24px", borderBottom: "1px solid #f0f0f0" }}>
+        <Layout style={{ minHeight: "calc(100vh - 64px)" }}>
+            {/* <Header style={{ background: "#fff", padding: "0 24px", borderBottom: "1px solid #f0f0f0" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: "100%" }}>
                     <Title level={3} style={{ margin: 0 }}>
                         知识库文档
@@ -384,18 +384,30 @@ const KnowledgeDocuments = () => {
                         </Button>
                     </Space>
                 </div>
-            </Header>
+            </Header> */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: '6px', marginTop: '10px'}}>
+                <Button icon={<ReloadOutlined />} onClick={fetchDocuments}>
+                            刷新
+                        </Button>
+                        <Button icon={<PlusOutlined />} onClick={openCreate} type="primary">
+                            新增文档
+                        </Button>
+            </div>
 
             <Content style={{ padding: 24 }}>
-                <Card
-                    title={
-                        <Space>
-                            <RobotOutlined />
-                            <span>Agent 工具编排问答</span>
-                        </Space>
-                    }
-                    style={{ marginBottom: 16 }}
-                >
+                <Collapse
+                    style={{ marginBottom: 16, background: "#fff" }}
+                    items={[
+                        {
+                            key: "agent-ask",
+                            label: (
+                                <Space>
+                                    <RobotOutlined />
+                                    <span>Agent 工具编排问答</span>
+                                </Space>
+                            ),
+                            children: (
+                                <Card bordered={false}>
                     <Form
                         form={agentForm}
                         layout="vertical"
@@ -685,7 +697,11 @@ const KnowledgeDocuments = () => {
                             )}
                         </div>
                     )}
-                </Card>
+                                </Card>
+                            ),
+                        },
+                    ]}
+                />
 
                 <Table
                     loading={loading}

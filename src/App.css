@@ -5,6 +5,113 @@
   text-align: left;
 }
 
+.app-shell {
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.app-sidebar {
+  position: sticky !important;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  background: #fff !important;
+  border-right: 1px solid #e5ebf3;
+}
+
+.app-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 88px;
+  padding: 20px 18px 14px;
+}
+
+.app-brand.collapsed {
+  justify-content: center;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.app-sidebar-menu.ant-menu {
+  padding: 0 12px;
+  border-inline-end: 0 !important;
+}
+
+.app-sidebar-menu .ant-menu-item,
+.app-sidebar-menu .ant-menu-submenu-title {
+  height: 46px;
+  line-height: 46px;
+  margin: 4px 0;
+  border-radius: 8px;
+}
+
+.app-sidebar-menu .ant-menu-item-selected {
+  color: #1264e6;
+  font-weight: 700;
+  background: #e8f1ff;
+}
+
+.app-main {
+  min-width: 0;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid #e5ebf3;
+  backdrop-filter: blur(12px);
+}
+
+.app-content {
+  min-width: 0;
+}
+
+.novel-video-preview-card {
+  width: min(28vw, 320px);
+}
+
+@media (min-width: 992px) {
+  .novel-video-preview-card {
+    position: fixed;
+    top: 50%;
+    right: 24px;
+    z-index: 4;
+    transform: translateY(-50%);
+  }
+}
+
+@media (max-width: 991px) {
+  .novel-video-preview-card {
+    width: 100%;
+    margin-top: 16px;
+  }
+}
+
+.app-content>.saas-shell {
+  min-height: auto;
+  background: transparent;
+}
+
+.app-content>.saas-shell>.saas-sider {
+  display: none;
+}
+
+.app-content>.saas-shell .saas-header {
+  display: none;
+}
+
+.app-content>.saas-shell .page-content {
+  padding: 24px;
+}
+
 .saas-shell {
   min-height: 100vh;
   background:
@@ -309,9 +416,9 @@
 }
 
 .workflow-template-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
   padding: 24px;
-  background: #f5f7fb;
+  /* background: #f5f7fb; */
 }
 
 .workflow-node-flow {

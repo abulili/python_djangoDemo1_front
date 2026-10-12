@@ -476,13 +476,13 @@ export default function WorkflowList() {
         <div style={{margin:24}}>
             <Row justify="space-between" align="middle" style={{ marginBottom: 16}}>
                 <Col>
-                    <h2>工作流审批</h2>
+                    {/* <h2>工作流审批</h2> */}
                 </Col>
                 <Col>
                     <Space>
-                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
+                        {/* <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/logs')}>
                             返回主页
-                        </Button>
+                        </Button> */}
                         <Button onClick={fetchData}>刷新</Button>
                         <Button type="primary" onClick={() => setCreateModalOpen(true)}>
                             新建付款申请
